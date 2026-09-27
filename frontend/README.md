@@ -26,6 +26,9 @@ I marcatori di commento (`/* CONST-BEGIN */` e simili) vanno mantenuti.
 - **Preset Devnet:** nelle impostazioni compila RPC, Program ID, tesorerie e rete del deploy
   su devnet. `test/emit.mjs` fallisce se `PRESETS.devnet` non coincide con `declare_id!` e
   `TREASURIES` di `solana/program/src/lib.rs`.
+- **Preset Testnet:** compila RPC, factory, chain ID, blocco di deploy ed explorer della
+  Robinhood Chain testnet. Entrambi i preset sono confrontati da `test/emit.mjs` con
+  `deployments.json` alla radice del repo, il registro dei deploy pubblici.
 
 ## Dopo una modifica
 
