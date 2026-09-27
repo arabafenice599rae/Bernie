@@ -25,7 +25,7 @@
 :root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
 *,*::before,*::after{ box-sizing:inherit; }
 html{ scroll-padding-top:env(safe-area-inset-top,0px); }
-body{ margin:0; min-height:100vh; background:var(--ground); color:var(--ink); font-family:var(--font); font-size:15.5px; line-height:1.45;
+body{ margin:0; min-height:100vh; min-height:100dvh; background:var(--ground); color:var(--ink); font-family:var(--font); font-size:15.5px; line-height:1.45;
   font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
 /* aurora verde e blu, lentissima: dà profondità al vetro */
 body::before{ content:''; position:fixed; inset:-20vmax; z-index:-2; pointer-events:none;
@@ -239,7 +239,7 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 /* fogli */
 .scrim{ position:fixed; inset:0; z-index:10; background:rgba(8,24,32,.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); opacity:0; pointer-events:none; transition:opacity .25s }
 .scrim.open{ opacity:1; pointer-events:auto }
-.sheet{ position:fixed; left:0; right:0; bottom:0; z-index:11; max-width:620px; margin:0 auto; max-height:86vh; overflow-y:auto;
+.sheet{ position:fixed; left:0; right:0; bottom:0; z-index:11; max-width:620px; margin:0 auto; max-height:86vh; max-height:calc(100dvh - env(safe-area-inset-top,0px) - 48px); overflow-y:auto; overscroll-behavior:contain;
   padding:22px 20px calc(24px + env(safe-area-inset-bottom,0px)); border-radius:36px 36px 0 0;
   background:var(--glass-hi); -webkit-backdrop-filter:blur(44px) saturate(185%); backdrop-filter:blur(44px) saturate(185%); border:1px solid var(--glass-edge);
   box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 -30px 60px -30px rgba(8,30,40,.4); transform:translateY(105%); visibility:hidden;
@@ -287,7 +287,7 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
   .topbar, .logo, #seg{ max-width:680px; margin-left:auto; margin-right:auto }
   body.has-pf #viewTokens:not(.hide){ display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr); gap:20px; align-items:start }
   #viewTokens > .pagefoot{ grid-column:1 / -1 }
-  #viewTokens:not(.hide) #listCard .list{ max-height:calc(100vh - 300px); overflow-y:auto }
+  #viewTokens:not(.hide) #listCard .list{ max-height:calc(100vh - 300px); max-height:calc(100dvh - 300px); overflow-y:auto }
   body:not(.has-pf) #listCard{ max-width:780px; margin-left:auto; margin-right:auto }
   #viewDetail:not(.hide){ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(380px,1fr); gap:0 20px; align-items:start; grid-auto-flow:row dense }
   #viewDetail > .back{ grid-column:1 / -1; justify-self:start }
@@ -1470,7 +1470,7 @@ $('#price').addEventListener('input', () => { $('#price').dataset.touched = '1';
 ['#nick', '#sym', '#uri', '#penP', '#penE'].forEach(id => $(id).addEventListener('input', updateDerive));
 $('#btnRef').addEventListener('click', () => { $('#penP').value = 200; $('#penE').value = 100; updateDerive(); });
 $('#btnCreate').addEventListener('click', create);
-const openSheet = id => { $('#scrim').classList.add('open'); $(id).classList.add('open'); };
+const openSheet = id => { $('#scrim').classList.add('open'); $(id).scrollTop = 0; $(id).classList.add('open'); };
 const closeSheets = () => { $('#scrim').classList.remove('open'); document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); };
 $('#btnWallet').addEventListener('click', () => { setWalletUi(); openSheet('#walletSheet'); });
 $('#walletClose').addEventListener('click', closeSheets);
