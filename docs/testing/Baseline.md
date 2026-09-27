@@ -1,7 +1,7 @@
 # Baseline (fase 0)
 
 Stato di partenza della tranche red-team, prima di qualunque test nuovo. Commit di
-riferimento: `c9df99e` (branch `claude/readme-review-8901um`). Macchina: container Linux
+riferimento: `4583bf5` (merge della PR #6, prima di ogni test del red team). Macchina: container Linux
 4 vCPU, 15 GB RAM. Nessuna modifica alla logica di Bernie tra baseline e report.
 
 ## Versioni

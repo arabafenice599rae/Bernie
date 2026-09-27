@@ -1,4 +1,4 @@
-# Riproducibilità (fase 24)
+# Riproducibilità (fase 23)
 
 Ogni campagna del pre-audit è deterministica: stesso seed, stessa sequenza, stesso esito.
 I generatori usano `random.Random` con seed testuale (`"{chain}:{seed}"` per `gen.py`,
