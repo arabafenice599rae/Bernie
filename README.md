@@ -396,7 +396,7 @@ Il byte 0 dei dati è il tag dell'istruzione; gli interi sono little-endian; le 
 
 - **mint:** creazione idempotente dell'ATA (programma ATA, dati `[1]`, con il program ID Token-2022) seguita da `mint`.
 - **redeem:** `ApproveChecked` Token-2022 (dati `[13, u u64, decimali u8]`: source ATA, mint, delegato = vault PDA, owner) seguita da `redeem`. Il programma verifica che la delega sia ≥ `u` ed esegue `BurnChecked` come delegato con `invoke_signed`.
-- **Budget di calcolo stimato**, da misurare: create 90k CU, mint 60k, redeem 45k, donate e sweep 10k.
+- **Budget di calcolo misurato** con Mollusk (Agave 4.2.2), caso peggiore sui vettori: create 21k CU (metadati alla lunghezza massima), mint 19k, redeem 18k più 1,4k per `ApproveChecked`, donate 14k, sweep 7k. Le stime precedenti erano create 90k, mint 60k, redeem 45k, donate e sweep 10k: donate le supera.
 
 **Tesoreria.** Lista costante di N indirizzi nel programma. Il client ne sceglie uno a caso per ogni operazione, per distribuire i write lock. Requisito operativo: ogni tesoreria resta sempre rent-exempt (mai svuotata del tutto), altrimenti una fee sotto il minimo rent-exempt farebbe fallire mint e riscatti.
 
@@ -450,7 +450,7 @@ Selettori e topic sono nell'Appendice B.
 
 ## 12. Mappa Solana
 
-- **Dipendenze:** `pinocchio`, `pinocchio-system`, `pinocchio-token-2022` 0.4.0. Le istruzioni dei metadati sono scritte a mano (~30 righe).
+- **Dipendenze:** `pinocchio` 0.11.2, `pinocchio-system` 0.6.1, `pinocchio-token` 0.7.0 (InitializeMint2, MintTo e BurnChecked, generici sul programma Token-2022), `pinocchio-token-2022` 0.4.0 (MetadataPointer), `pinocchio-log` 0.5.1. Le istruzioni dei metadati sono scritte a mano.
 - **Moduli:**
   - `state.rs`: funzioni pure generiche su `const SCALE`;
   - `processor/*.rs`: uno per istruzione;
@@ -536,9 +536,10 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 
 | Chain | Libreria o strumento | Ruolo | Versione |
 |---|---|---|---|
-| Solana | `pinocchio`, `pinocchio-system` | entrypoint, PDA, trasferimenti | da fissare |
-| Solana | `pinocchio-token-2022` | InitializeMint2, MintTo, BurnChecked | 0.4.0 |
-| Solana | `mollusk-svm`, `proptest`, Kani | test di istruzione, proprietà, prova formale | da fissare |
+| Solana | `pinocchio`, `pinocchio-system`, `pinocchio-log` | entrypoint, PDA, trasferimenti, log | 0.11.2, 0.6.1, 0.5.1 |
+| Solana | `pinocchio-token`, `pinocchio-token-2022` | InitializeMint2, MintTo, BurnChecked; MetadataPointer | 0.7.0, 0.4.0 |
+| Solana | `mollusk-svm` (con runtime Agave 4.2.x), Kani | test di istruzione, prova formale | 0.15.1; Kani da `kani-github-action@v1` |
+| Solana | Agave (`cargo build-sbf`) | build SBF | 4.2.2 |
 | EVM | OpenZeppelin Contracts 5.x | token-vault, cloni, arrotondamenti, lock | tag da fissare |
 | EVM | Foundry, Halmos | test, invarianti, prova simbolica | da fissare |
 | Entrambe | Python 3 (solo libreria standard) | modello di riferimento e vettori | — |
@@ -578,12 +579,12 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 - `ft(base+1) − ft(base) ∈ {0, 1}` e `fc + fp == ft`;
 - P5.
 
-**Portata di Kani.** È bounded model checking, non una prova generale. Kani dimostra I1–I6, la conservazione di `R + Q` e la canonicità di absorb, mint, redeem e donate con `SCALE = 10` su input fino a 8 bit: k ≤ 255; S, Q e u ≤ 31. La monotonia di `fees` e `fc + fp == ft` valgono invece su tutto `u64`. La corrispondenza con le scale reali è coperta dai vettori differenziali.
+**Portata di Kani.** È bounded model checking, non una prova generale. Kani dimostra I1–I6, la conservazione di `R + Q` e la canonicità di absorb, mint, redeem e donate con `SCALE = 10` su input fino a 8 bit: k ≤ 255; S, Q e u ≤ 31. La monotonia di `fees` e `fc + fp == ft` sono dimostrate su `base` fino a 32 bit; su tutto `u64` le coprono i test esaustivi e casuali. La corrispondenza con le scale reali è coperta dai vettori differenziali.
 
 **Prima del deploy:**
 
-- [ ] Programmi scritti sull'interfaccia della sezione 11.
-- [ ] Vettori con i casi peggiori portati in Mollusk e Foundry, compreso il redeem con CPI Guard attivo e disattivo.
+- [ ] Programmi scritti sull'interfaccia della sezione 11. Solana fatto (`solana/program`); EVM da fare.
+- [ ] Vettori con i casi peggiori portati in Mollusk e Foundry, compreso il redeem con CPI Guard attivo e disattivo. Mollusk fatto (1.445 passi SCALE 10⁹, CPI Guard attivo e disattivo); Foundry da fare.
 - [ ] Probe TSTORE su testnet 46630 e misura delle CU su devnet.
 - [ ] Indirizzi reali di tesoreria (N per Solana).
 - [ ] Upgrade authority revocata su Solana; sorgenti verificati sugli explorer.

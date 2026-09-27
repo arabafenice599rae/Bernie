@@ -10,7 +10,8 @@ Tutto parte dal modello di riferimento dell'Appendice A, copiato in `model/berni
 | Vettori condivisi | `python3 tools/gen_vectors.py` (`--check` in CI) | locale, CI |
 | Appendice B | `python3 tools/abi_check.py` (usa solc se presente, o `$SOLC`) | locale, CI |
 | `state.rs`: vettori, esaustivo SCALE 10, parametri | `cd solana && cargo test` | locale, CI |
-| Kani su `state.rs` | `cd solana/state && cargo kani` | CI |
+| Kani su `state.rs` | `cd solana/state && cargo kani` | CI (un job per harness) |
+| Programma Solana su Mollusk: vettori 10⁹, CPI Guard, deleghe, CU | `cd solana/program && cargo build-sbf && cd .. && cargo test -p bernie-program --release --test mollusk` | locale (Agave 4.2.2), CI |
 | Interfaccia EVM | `cd evm && forge build` | CI |
 
 Solo libreria standard Python; `tools/keccak.py` è un Keccak-256 in Python puro.
