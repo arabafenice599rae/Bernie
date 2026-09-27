@@ -1,0 +1,76 @@
+name: Verifica formale
+
+# Kani e Halmos costano centinaia di minuti di runner: partono solo quando cambia il codice
+# che dimostrano, una volta a settimana e a mano. Il resto della CI è in ci.yml.
+on:
+  push:
+    paths:
+      - "solana/state/**"
+      - "evm/src/BernieMath.sol"
+      - "evm/test/BernieMath.halmos.t.sol"
+      - ".github/workflows/formal.yml"
+  pull_request:
+    paths:
+      - "solana/state/**"
+      - "evm/src/BernieMath.sol"
+      - "evm/test/BernieMath.halmos.t.sol"
+      - ".github/workflows/formal.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * 1" # lunedì
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kani:
+    name: Kani ${{ matrix.harness }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          - absorb_conserves_and_canonicalizes
+          - mint_canonical_or_error
+          - redeem_canonical_or_error
+          - donate_canonical_or_error
+          - fees_step_and_split
+    steps:
+      - uses: actions/checkout@v4
+      - uses: model-checking/kani-github-action@v1
+        with:
+          working-directory: solana/state
+          args: --harness ${{ matrix.harness }}
+
+  halmos:
+    name: Halmos ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [check_absorb, check_donate, check_fees, check_mint_u1, check_mint_u3, check_mint_u17, check_redeem_u1, check_redeem_u3, check_redeem_u17]
+    defaults:
+      run:
+        working-directory: evm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dipendenze (forge-std da GitHub via HTTPS)
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          npm ci
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install halmos==0.3.3
+      - name: Halmos su BernieMath
+        run: halmos --contract BernieMathHalmos --function ${{ matrix.check }} --solver-timeout-assertion 0

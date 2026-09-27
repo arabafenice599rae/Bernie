@@ -31,3 +31,9 @@ P6c e P6d usano gli ε di §8, con la stessa quota del residuo
 Il test genera supply piccole, medie e fino a 10¹⁸, residuo `Q₀` massimo, condizione di P6d
 al limite e k anche sotto `MIN_PRICE`. Togliendo `q` da ε_c, o usando ε = 1 per P6d,
 il test fallisce.
+
+## Workflow
+
+- `.github/workflows/ci.yml`: tutto tranne la verifica formale, a ogni push e PR (più il fuzz notturno).
+- `.github/workflows/formal.yml`: Kani e Halmos, solo quando cambiano `solana/state/**`,
+  `evm/src/BernieMath.sol` o gli harness, ogni lunedì e a mano (costano centinaia di minuti).
