@@ -7,3 +7,12 @@ frontend/test/node_modules/
 evm/node_modules/
 evm/artifacts/
 evm/cache_hardhat/
+
+# Segreti: mai nel repository (il repository è pubblico).
+.env
+.env.*
+*.pem
+keys/
+*-keypair.json
+*keypair*.json
+id.json
