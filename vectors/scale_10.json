@@ -1591,6 +1591,85 @@
    ]
   },
   {
+   "name": "epen_rounding",
+   "params": {
+    "entry_bps": 100,
+    "penalty_bps": 200,
+    "price": "10"
+   },
+   "steps": [
+    {
+     "expect": {
+      "ok": true,
+      "result": "2"
+     },
+     "op": "mint",
+     "state": {
+      "Q": "0",
+      "R": "20",
+      "S": "2",
+      "bal": "2",
+      "fc": "0",
+      "fp": "0",
+      "k": "10"
+     },
+     "u": "2"
+    },
+    {
+     "expect": {
+      "ok": true,
+      "result": "2"
+     },
+     "op": "mint",
+     "state": {
+      "Q": "1",
+      "R": "39",
+      "S": "3",
+      "bal": "4",
+      "fc": "0",
+      "fp": "0",
+      "k": "13"
+     },
+     "u": "1"
+    },
+    {
+     "expect": {
+      "ok": true,
+      "result": "4"
+     },
+     "op": "mint",
+     "state": {
+      "Q": "2",
+      "R": "78",
+      "S": "6",
+      "bal": "8",
+      "fc": "0",
+      "fp": "0",
+      "k": "13"
+     },
+     "u": "3"
+    },
+    {
+     "expect": {
+      "ok": true,
+      "result": "1"
+     },
+     "min_out": "0",
+     "op": "redeem",
+     "state": {
+      "Q": "0",
+      "R": "70",
+      "S": "5",
+      "bal": "7",
+      "fc": "0",
+      "fp": "0",
+      "k": "14"
+     },
+     "u": "1"
+    }
+   ]
+  },
+  {
    "name": "random_0",
    "params": {
     "entry_bps": 200,

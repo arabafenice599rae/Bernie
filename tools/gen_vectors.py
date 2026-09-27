@@ -120,6 +120,21 @@ def random_case(r, idx, SCALE, lo, hi, cap, solana):
     return c.out
 
 
+def epen_witness(SCALE, lo, hi):
+    """P e u₁ per il caso epen_rounding (vedi edge_cases)."""
+    for n in range(1, 10**6):
+        r = n * SCALE % 101
+        if 1 <= r <= 99:
+            P = 100 * ((n * SCALE - r) // 101) + r   # P + ⌈P/100⌉ = n·SCALE + 1
+            if lo <= P <= hi:
+                break
+    epen = -(-P * 100 // 10_000)
+    u1 = epen + 1
+    while -(-u1 * P // SCALE) * SCALE - u1 * P + epen >= u1:   # resto del primo mint + epen < u₁
+        u1 *= 2
+    return P, u1
+
+
 def edge_cases(SCALE, lo, hi, cap, solana):
     out = []
 
@@ -170,6 +185,19 @@ def edge_cases(SCALE, lo, hi, cap, solana):
     for _ in range(30):
         c.step("redeem", u=31_337, min_out=0)
         c.step("mint", u=12_345)
+    out.append(c.out)
+
+    # Arrotondamento per eccesso dell'epen (§6): un caso in cui ⌈·⌉ e ⌊·⌋ danno stati diversi.
+    # Lo stato canonico dipende solo da R + Q e da S, quindi il verso dell'arrotondamento
+    # dell'epen conta solo se sposta c = ⌈(full + epen)/SCALE⌉. Con e = 1% ed x = P non
+    # multiplo di 100 si sceglie x + ⌈x/100⌉ = N·SCALE + 1; un primo mint grande (u₁)
+    # lascia k = P, poi il mint di 1 unità paga 1 unità nativa in più che col floor.
+    P, u1 = epen_witness(SCALE, lo, hi)
+    c = Case("epen_rounding", P, 200, 100, SCALE, solana)
+    c.step("mint", u=u1)
+    c.step("mint", u=1)
+    c.step("mint", u=3)
+    c.step("redeem", u=1, min_out=0)
     out.append(c.out)
 
     # Forma dell'esempio di §8 (p = 500, e = 460): holder, attaccante, redeem della vittima.
