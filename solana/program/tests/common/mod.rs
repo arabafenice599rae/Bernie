@@ -62,6 +62,7 @@ impl Env {
         let mut mollusk = Mollusk::default();
         mollusk.add_program_with_loader_and_elf(&PROGRAM_ID, &LOADER_V3, &elf);
         token2022::add_program(&mut mollusk);
+        mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
         let ctx = mollusk.with_context(HashMap::new());
         let env = Self {
             ctx,

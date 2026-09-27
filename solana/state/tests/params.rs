@@ -25,7 +25,10 @@ fn error_codes_match_section_7() {
     ];
     for (e, code) in table {
         assert_eq!(e.code(), code, "{}", e.name());
+        assert_eq!(BernieError::from_code(code), Some(e));
     }
+    assert_eq!(BernieError::from_code(7), None, "7 riservato");
+    assert_eq!(BernieError::from_code(18), None);
 }
 
 #[test]

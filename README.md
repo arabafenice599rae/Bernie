@@ -531,11 +531,11 @@ In live mostra solo i token del protocollo.
 
 Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona con la pagina ospitata in proprio. Il live non è ancora testato, perché i programmi non esistono.
 
-**Da allineare:**
-- codice 16 `MetadataTooLong` nella mappa degli errori;
-- topic `State` al posto di `Peg`;
-- creator rimosso dagli account di `mint` e `redeem`;
-- tag 4 = `sweep` con "Ritira excess" disponibile su Solana in qualsiasi momento.
+**Allineato alla v1.6:** topic `State`, errori 16 `MetadataTooLong` e 17 `NotOwner`, creator fuori da `mint` e `redeem`, tag 4 = `sweep` con "Ritira excess" su Solana in qualsiasi momento.
+
+**Nel repository:** `frontend/index.html`. I costruttori delle istruzioni (`ixCreate`, `ixAta`, `ixMint`, `ixApprove`, `ixRedeem`, `ixDonate`, `ixSweep`, `withBudget`) sono estratti dalla pagina e le transazioni risultanti eseguite su Mollusk contro il programma (`solana/program/tests/frontend.rs`): ordine degli account, dati, vault PDA, mappa degli errori e limiti di CU sono verificati, non più controllati a vista.
+
+**Budget di calcolo nel client.** `withBudget` somma i limiti delle istruzioni del programma, 20.000 CU per ogni creazione di ATA (circa 17k misurate) e 8.000 di margine. Senza la quota ATA il primo mint di un utente in un pool grande (35.552 CU misurate) superava il limite di 34.000 e falliva.
 
 ## 15. Librerie e strumenti
 

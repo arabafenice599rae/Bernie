@@ -368,6 +368,7 @@ version = "0.1.0"
 dependencies = [
  "bernie-state",
  "mollusk-svm",
+ "mollusk-svm-programs-token",
  "mollusk-svm-programs-token-2022",
  "pinocchio",
  "pinocchio-log",
@@ -1375,6 +1376,22 @@ checksum = "557ec90b7648b8b1a17c63fcd353a8fcb520bfd8ed2796dcccc40c4338ff3dd1"
 dependencies = [
  "solana-pubkey 4.2.0",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "mollusk-svm-programs-token"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a71fd6d8b0e97f080cc89a6267fcfe317fa45d6e26fe4cbd229ddf488e1281d6"
+dependencies = [
+ "mollusk-svm",
+ "mollusk-svm-programs-token-2022",
+ "solana-account",
+ "solana-program-pack",
+ "solana-pubkey 4.2.0",
+ "solana-rent",
+ "spl-associated-token-account-interface",
+ "spl-token-interface",
 ]
 
 [[package]]
@@ -3117,6 +3134,16 @@ checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
 dependencies = [
  "base64ct",
  "der",
+]
+
+[[package]]
+name = "spl-associated-token-account-interface"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6433917b60441d68d99a17e121d9db0ea15a9a69c0e5afa34649cf5ba12612f"
+dependencies = [
+ "solana-instruction",
+ "solana-pubkey 3.0.0",
 ]
 
 [[package]]

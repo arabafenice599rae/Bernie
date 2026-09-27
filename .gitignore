@@ -3,3 +3,4 @@ __pycache__/
 solana/target/
 evm/out/
 evm/cache/
+frontend/test/node_modules/

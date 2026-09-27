@@ -28,6 +28,29 @@ impl BernieError {
         self as u32
     }
 
+    /// Errore dal codice custom (7 è riservato).
+    pub const fn from_code(code: u32) -> Option<Self> {
+        Some(match code {
+            1 => Self::ZeroAmount,
+            2 => Self::ExceedsSupply,
+            3 => Self::Dust,
+            4 => Self::ZeroPayout,
+            5 => Self::Slippage,
+            6 => Self::NoHolders,
+            8 => Self::PenaltyOutOfRange,
+            9 => Self::PriceOutOfRange,
+            10 => Self::Overflow,
+            11 => Self::InvariantViolated,
+            12 => Self::NothingToClaim,
+            13 => Self::TransferToSelf,
+            14 => Self::SupplyMismatch,
+            15 => Self::MissingDelegation,
+            16 => Self::MetadataTooLong,
+            17 => Self::NotOwner,
+            _ => return None,
+        })
+    }
+
     /// Nome usato nel modello di riferimento e nei vettori JSON.
     pub const fn name(self) -> &'static str {
         match self {

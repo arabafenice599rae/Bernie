@@ -94,10 +94,25 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: Build SBF
         run: cargo build-sbf --manifest-path program/Cargo.toml
-      - name: Mollusk (vettori, CPI Guard, CU)
+      - name: Mollusk (vettori, CPI Guard, CU, transazioni del frontend)
         env:
           RUST_LOG: "off"
-        run: cargo test -p bernie-program --release --test mollusk -- --nocapture
+        run: cargo test -p bernie-program --release -- --nocapture
+
+  frontend:
+    name: Frontend (costruttori di istruzioni)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Transazioni del frontend aggiornate
+        run: node emit.mjs --check
 
   kani:
     name: Kani ${{ matrix.harness }}
