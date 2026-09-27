@@ -47,8 +47,11 @@ def random_params(r, SCALE):
     return P, p, e
 
 
-def random_state(r, SCALE, k=None, S=None, p=None, e=None):
-    """Stato canonico (I1–I6) con saldo esatto: k, S, Q < S arbitrari."""
+def random_state(r, SCALE, k=None, S=None, p=None, e=None, full_residual=False):
+    """Stato canonico (I1–I6) con saldo esatto: k, S, Q < S arbitrari.
+
+    full_residual: Q il più vicino possibile a S (caso peggiore per P6c e P6d).
+    """
     P, p0, e0 = random_params(r, SCALE)
     p = p0 if p is None else p
     e = e0 if e is None else e
@@ -58,7 +61,11 @@ def random_state(r, SCALE, k=None, S=None, p=None, e=None):
     v.R = v.S * v.k
     # Residuo che rende (R + Q) multiplo di SCALE (I5), più qualche SCALE intero;
     # l'absorb lo riporta sotto S (I6) spostando k di poco.
-    v.Q = (-v.R) % SCALE + r.randint(0, 3) * SCALE
+    base = (-v.R) % SCALE
+    if full_residual and base < v.S:
+        v.Q = base + (v.S - 1 - base) // SCALE * SCALE
+    else:
+        v.Q = base + r.randint(0, 3) * SCALE
     v.absorb()
     v.bal = (v.R + v.Q) // SCALE
     v.inv(v.k)

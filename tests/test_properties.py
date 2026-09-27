@@ -2,12 +2,24 @@
 import copy
 import unittest
 
-from common import BPS, FEE_C, FEE_P, SCALES, Err, Vault, cdiv, n, random_state, rng, split_fees
+from common import (BPS, FEE_C, FEE_P, PRICE_RANGE, SCALES, Err, Vault, cdiv, log_uniform, n,
+                    random_state, rng, split_fees)
 
 FEE = FEE_C + FEE_P
 
-# Massimo osservato: 3,0 unità native su ~36.000 scenari con SCALE 10 (0 sforamenti con 10⁹ e 10¹⁸).
-P6C_EPS_HOST = 3
+
+
+def eps_c(V, SCALE):
+    """P6c: quota del residuo preesistente (Q₀ < S₀) più due arrotondamenti, in unità native."""
+    return V // SCALE + 2
+
+
+def eps_d(O, V, A, SCALE):
+    """P6d: quota pro-rata dell'attaccante di un residuo pieno (O + V sotto-unità), più 1.
+
+    Vale 1 se A·(O + V) < (O + A)·SCALE; al massimo 1/k della posizione dell'attaccante.
+    """
+    return A * (O + V) // ((O + A) * SCALE) + 1
 
 
 def clone(v):
@@ -156,20 +168,36 @@ class Economics(unittest.TestCase):
         out_att = att.redeem(V)
         return out_plain, k_plain, out_att, att, cost
 
+    @staticmethod
+    def _sizes(r, mode):
+        """O, V, A: piccoli, fino a 10⁶, fino a 10¹⁸ (supply reali) o con P6d al limite."""
+        if mode == "small":
+            return r.randint(1, 50), r.randint(1, 50), r.randint(1, 50)
+        if mode == "mid":
+            return r.randint(1, 10**6), r.randint(1, 10**6), r.randint(1, 10**7)
+        V = log_uniform(r, 1, 10**15)
+        A = log_uniform(r, 1, 10**17)
+        if mode == "big":
+            return log_uniform(r, 1, 10**18), V, A
+        return None, V, A  # "tight": O calcolato da p ed e
+
     def test_p6_capture(self):
-        """P6a vittima indenne, P6b nessuna perdita di backing, P6c cattura ≤ penalità, P6d soglia."""
+        """P6a vittima indenne, P6b nessuna perdita di backing, P6c e P6d con ε_c ed ε_d."""
         checked = {"a": 0, "d": 0}
         for SCALE in SCALES:
             r = rng(f"p6:{SCALE}")
-            for _ in range(n(3000)):
-                O = r.choice([1, r.randint(1, 50), r.randint(1, 10**6)])
-                V = r.choice([1, r.randint(1, 50), r.randint(1, 10**6)])
-                A = r.choice([1, r.randint(1, 50), r.randint(1, 10**7)])
-                if SCALE > 10 and r.random() < 0.3:
-                    # k piccoli anche sulle SCALE di produzione: arrotondamenti più pesanti.
-                    v = random_state(r, SCALE, k=r.randint(1, 100 * SCALE), S=O + V)
-                else:
-                    v = random_state(r, SCALE, S=O + V)
+            for i in range(n(4000)):
+                mode = ("small", "mid", "big", "tight")[i % 4]
+                O, V, A = self._sizes(r, mode)
+                p = r.randint(100, 1000)
+                e = r.choice([0, p, r.randint(0, p)])
+                if O is None:
+                    O = cdiv(p * V, e + FEE) + r.choice([0, r.randint(0, V)])
+                lo, hi = PRICE_RANGE[SCALE]
+                # Anche k sotto MIN_PRICE: i limiti valgono per ogni k.
+                k = log_uniform(r, 1, hi) if r.random() < 0.3 else None
+                v = random_state(r, SCALE, k=k, S=O + V, p=p, e=e,
+                                 full_residual=r.random() < 0.7)
                 k_before = v.k
                 try:
                     out_plain, k_plain, out_att, att, cost = self._attack(v, V, A)
@@ -180,15 +208,12 @@ class Economics(unittest.TestCase):
                 self.assertGreaterEqual(O * att.k, O * k_before, "P6b")
                 profit = A * att.k // SCALE - cost  # mark-to-k
                 pen_v = cdiv(V * k_before * v.p, BPS)
-                # P6c. Con SCALE 10 e k < SCALE i resti di arrotondamento (ceil del mint
-                # dell'attaccante, resto del redeem della vittima) pesano fino a 3 unità
-                # native oltre la penalità: tolleranza P6C_EPS_HOST, vedi tests/README.md.
-                eps = P6C_EPS_HOST if SCALE == 10 else 0
-                self.assertLessEqual(profit, cdiv(pen_v, SCALE) + eps, "P6c")
+                ctx = f"SCALE={SCALE} O={O} V={V} A={A} p={p} e={e} k={k_before}"
+                self.assertLessEqual(profit * SCALE, pen_v + eps_c(V, SCALE) * SCALE, "P6c " + ctx)
                 if v.p * V <= (v.e + FEE) * O:
                     checked["d"] += 1
-                    self.assertLessEqual(profit, 1, "P6d")
-        self.assertGreater(checked["d"], 100)
+                    self.assertLessEqual(profit, eps_d(O, V, A, SCALE), "P6d " + ctx)
+        self.assertGreater(checked["d"], n(2000))
 
     def test_example_section_8(self):
         """Esempio verificato di §8 (v1.6): p = 500, e = 460, O = 5, V = 20, A = 5."""
@@ -235,8 +260,7 @@ class Parameters(unittest.TestCase):
     def test_reference(self):
         rt = self.round_trip(200, 100)
         self.assertAlmostEqual(rt * 100, 3.74, delta=0.005)
-        # Il modello dà +3,885%: il README riporta +3,89%, ricavato dal 3,74% già arrotondato.
-        self.assertAlmostEqual((1 / (1 - rt) - 1) * 100, 3.89, delta=0.006)
+        self.assertEqual(round((1 / (1 - rt) - 1) * 100, 2), 3.88)
         self.assertAlmostEqual(self.v_star(200, 100) * 100, 41, delta=0.5)
 
     def test_split_matters(self):
@@ -244,23 +268,21 @@ class Parameters(unittest.TestCase):
         self.assertAlmostEqual(self.v_star(200, 100) * 100, 41, delta=0.5)
         self.assertAlmostEqual(self.v_star(150, 150) * 100, 56, delta=0.5)
 
-    def test_simulation_table(self):
+    def test_formula_table(self):
         rows = [  # p, e, round-trip %, v* %, k/anno τ=1%, k/anno τ=5%
-            (100, 50, 2.28, 47, 2.8, 14.6),
-            (200, 100, 3.74, 41, 5.7, 31),
-            (300, 150, 5.19, 39, 8.6, 51),
-            (500, 250, 8.05, 37, 14.7, 98),
+            (100, 50, 2.28, 47, 2.78, 14.67),
+            (200, 100, 3.74, 41, 5.63, 31.48),
+            (300, 150, 5.19, 39, 8.56, 50.74),
+            (500, 250, 8.05, 37, 14.67, 98.13),
         ]
         for p, e, rt, vs, k1, k5 in rows:
             with self.subTest(p=p, e=e):
-                self.assertAlmostEqual(self.round_trip(p, e) * 100, rt, delta=0.005)
-                self.assertAlmostEqual(self.v_star(p, e) * 100, vs, delta=0.5)
-                # Crescita di k ≈ (e + p)·τ/2 al giorno, composta su 365 giorni (limite ottimistico).
+                self.assertEqual(round(self.round_trip(p, e) * 100, 2), rt)
+                self.assertEqual(round(self.v_star(p, e) * 100), vs)
+                # Formula di §9: (1 + (e + p)·τ/2)^365 − 1.
                 for tau, want in ((0.01, k1), (0.05, k5)):
                     g = ((1 + (e + p) / BPS * tau / 2) ** 365 - 1) * 100
-                    # Tabella di simulazione: tolleranza 2% relativo (min 0,1 punti).
-                    # Nota: per p = 2%, e = 1%, τ = 1% la formula dà +5,63%, il README +5,7%.
-                    self.assertAlmostEqual(g, want, delta=max(0.1, want * 0.02))
+                    self.assertEqual(round(g, 2), want)
 
 
 if __name__ == "__main__":

@@ -22,12 +22,9 @@ Ogni caso parte da `create(P, p, e)`; ogni passo registra esito e stato completo
 (`k`, `R`, `Q`, `S`, saldo del vault senza fee, fee cumulative). Interi come stringhe.
 `state.rs` li rigioca per SCALE 10 e 10⁹; i vettori 10¹⁸ servono all'EVM.
 
-## Tolleranze e scostamenti noti
+## Limiti di cattura
 
-- **P6c con SCALE 10.** Con k < SCALE il profitto mark-to-k dell'attaccante può superare
-  la penalità della vittima fino a 3 unità native (ceil del proprio mint più resto del
-  redeem della vittima). Con SCALE 10⁹ e 10¹⁸ lo sforamento resta sotto 1 unità, quindi
-  entro `⌈pen/SCALE⌉`. Il test usa `P6C_EPS_HOST = 3` solo per SCALE 10.
-- **§9, pareggio.** Il modello dà +3,885% (il README riporta +3,89%, derivato dal 3,74% arrotondato).
-- **§9, tabella.** Per p = 2%, e = 1%, τ = 1%/g la formula `(e + p)·τ/2` composta dà +5,63%/anno;
-  il README riporta +5,7%. Il test accetta uno scarto del 2%.
+P6c e P6d usano gli ε di §8: `ε_c = ⌊V/SCALE⌋ + 2` e `ε_d = ⌊A·(O+V)/((O+A)·SCALE)⌋ + 1`.
+Il test genera supply piccole, medie e fino a 10¹⁸, residuo `Q₀` massimo, condizione di P6d
+al limite e k anche sotto `MIN_PRICE`. Con ε = 1 al posto di ε_d, o senza il termine `⌊V/SCALE⌋`
+in ε_c, il test fallisce.

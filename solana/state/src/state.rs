@@ -344,7 +344,11 @@ impl<const SCALE: u128> Vault<SCALE> {
     }
 }
 
-/// Harness di §17 per Kani, su `SCALE = 10` e domini piccoli.
+/// Harness di §17 per Kani, su `SCALE = 10`.
+///
+/// Gli input nascono come `u8`/`u16` e vengono estesi a u128: i bit alti sono costanti,
+/// quindi il solver non esplora divisioni a 128 bit libere. La corrispondenza con le
+/// SCALE reali è coperta dai vettori differenziali.
 #[cfg(kani)]
 mod verification {
     use super::*;
@@ -352,11 +356,10 @@ mod verification {
     type V = Vault<10>;
 
     fn any_canonical() -> V {
-        let k: u128 = kani::any();
-        kani::assume(k >= 1 && k <= 64);
-        let supply: u64 = kani::any();
-        kani::assume(supply <= 16);
-        let residual: u128 = kani::any();
+        let k = u128::from(kani::any::<u8>());
+        kani::assume(k >= 1);
+        let supply = u64::from(kani::any::<u8>() & 0x1f);
+        let residual = u128::from(kani::any::<u8>() & 0x1f);
         kani::assume(if supply == 0 {
             residual == 0
         } else {
@@ -365,7 +368,7 @@ mod verification {
         let reserve = k * u128::from(supply);
         kani::assume((reserve + residual) % 10 == 0);
         let penalty_bps: u16 = kani::any();
-        kani::assume(penalty_bps >= PEN_MIN && penalty_bps <= PEN_MAX);
+        kani::assume((PEN_MIN..=PEN_MAX).contains(&penalty_bps));
         let entry_bps: u16 = kani::any();
         kani::assume(entry_bps <= penalty_bps);
         V {
@@ -378,6 +381,12 @@ mod verification {
         }
     }
 
+    fn any_amount() -> u64 {
+        let u = u64::from(kani::any::<u8>() & 0x1f);
+        kani::assume(u >= 1);
+        u
+    }
+
     fn canonical(v: &V) -> bool {
         if v.supply == 0 {
             v.residual == 0 && v.reserve == 0
@@ -387,11 +396,10 @@ mod verification {
     }
 
     #[kani::proof]
+    #[kani::solver(cadical)]
     fn absorb_conserves_and_canonicalizes() {
         let mut v = any_canonical();
-        let extra: u128 = kani::any();
-        kani::assume(extra <= 1_000);
-        v.residual += extra;
+        v.residual += u128::from(kani::any::<u16>());
         let before = v.reserve + v.residual;
         v.absorb().unwrap();
         assert_eq!(v.reserve + v.residual, before);
@@ -400,27 +408,31 @@ mod verification {
     }
 
     #[kani::proof]
+    #[kani::solver(cadical)]
     fn mint_canonical_or_error() {
         let v = any_canonical();
-        let u: u64 = kani::any();
-        kani::assume(u >= 1 && u <= 16);
+        let u = any_amount();
         let mut w = v;
         match w.mint(u, u64::MAX) {
             Ok(m) => {
                 assert!(canonical(&w));
                 assert!(w.k >= v.k);
+                assert_eq!(
+                    w.reserve + w.residual,
+                    v.reserve + v.residual + u128::from(m.cost) * 10
+                );
                 assert!(u128::from(m.cost) * 10 >= m.full + m.epen);
-                assert!(cdiv(m.full, 10) <= u128::from(m.cost)); // b ≤ c
+                assert!(m.full.div_ceil(10) <= u128::from(m.cost)); // b ≤ c
             }
             Err(_) => assert_eq!(w, v),
         }
     }
 
     #[kani::proof]
+    #[kani::solver(cadical)]
     fn redeem_canonical_or_error() {
         let v = any_canonical();
-        let u: u64 = kani::any();
-        kani::assume(u >= 1 && u <= 16);
+        let u = any_amount();
         let mut w = v;
         match w.redeem(u, 0) {
             Ok(r) => {
@@ -428,27 +440,39 @@ mod verification {
                 assert!(w.k >= v.k);
                 assert!(r.out <= r.gross);
                 assert!(u128::from(r.gross) * 10 <= r.full - r.pen);
+                if w.supply > 0 {
+                    assert_eq!(
+                        w.reserve + w.residual,
+                        v.reserve + v.residual - u128::from(r.gross) * 10
+                    );
+                }
             }
             Err(_) => assert_eq!(w, v),
         }
     }
 
     #[kani::proof]
+    #[kani::solver(cadical)]
     fn donate_canonical_or_error() {
         let v = any_canonical();
-        let a: u64 = kani::any();
-        kani::assume(a <= 64);
+        let a = u64::from(kani::any::<u8>());
         let mut w = v;
         match w.donate(a) {
             Ok(()) => {
                 assert!(canonical(&w));
                 assert!(w.k >= v.k);
+                assert_eq!(
+                    w.reserve + w.residual,
+                    v.reserve + v.residual + u128::from(a) * 10
+                );
             }
             Err(_) => assert_eq!(w, v),
         }
     }
 
+    /// Qui l'intero dominio u64: split_fees usa solo moltiplicazioni e divisioni per costanti.
     #[kani::proof]
+    #[kani::solver(cadical)]
     fn fees_step_and_split() {
         let base: u64 = kani::any();
         kani::assume(base < u64::MAX);

@@ -75,14 +75,24 @@ jobs:
       - run: cargo test --release
 
   kani:
-    name: Kani (harness di §17)
+    name: Kani ${{ matrix.harness }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          - absorb_conserves_and_canonicalizes
+          - mint_canonical_or_error
+          - redeem_canonical_or_error
+          - donate_canonical_or_error
+          - fees_step_and_split
     steps:
       - uses: actions/checkout@v4
       - uses: model-checking/kani-github-action@v1
         with:
           working-directory: solana/state
+          args: --harness ${{ matrix.harness }}
 
   evm:
     name: Interfaccia EVM (Foundry)
