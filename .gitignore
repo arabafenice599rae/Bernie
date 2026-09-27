@@ -3,6 +3,7 @@ __pycache__/
 solana/target/
 evm/out/
 evm/cache/
+evm/diff/
 frontend/test/node_modules/
 evm/node_modules/
 evm/artifacts/

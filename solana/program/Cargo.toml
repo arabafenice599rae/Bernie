@@ -39,6 +39,7 @@ solana-pubkey = "4.1"
 solana-rent = "4.2"
 solana-sdk-ids = "3.1"
 solana-transaction-error = "3.3.2"
+solana-svm-log-collector = "~4.2"
 # Mollusk 0.15.1 compila solo contro il runtime Agave 4.2.x: la 4.3 ha cambiato API interne.
 # Questi vincoli tengono tutta la famiglia su 4.2 finché non esce un Mollusk compatibile.
 solana-bpf-loader-program = "~4.2"
