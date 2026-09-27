@@ -1,0 +1,49 @@
+[package]
+name = "bernie-program"
+version = "0.1.0"
+edition = "2021"
+description = "Bernie v1.6: programma Solana (Pinocchio + Token-2022), §11–§12"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+# Per usare il crate come libreria (client, test) senza entrypoint.
+no-entrypoint = []
+
+[dependencies]
+bernie-state = { path = "../state" }
+pinocchio = { version = "0.11.2", default-features = false, features = ["cpi", "copy"] }
+pinocchio-system = "0.6.1"
+pinocchio-token = "0.7.0"
+pinocchio-token-2022 = "0.4.0"
+pinocchio-log = "0.5.1"
+
+# find_program_address sull'host (test, clippy): sul target Solana usa la syscall.
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-address = { version = "2.6", features = ["curve25519"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
+
+[dev-dependencies]
+mollusk-svm = "0.15.1"
+mollusk-svm-programs-token-2022 = "0.15.1"
+mollusk-svm-programs-token = "0.15.1"
+serde_json = "1"
+solana-account = "4.3"
+solana-instruction = "3.2"
+solana-pubkey = "4.1"
+solana-rent = "4.2"
+solana-sdk-ids = "3.1"
+solana-transaction-error = "3.3.2"
+# Mollusk 0.15.1 compila solo contro il runtime Agave 4.2.x: la 4.3 ha cambiato API interne.
+# Questi vincoli tengono tutta la famiglia su 4.2 finché non esce un Mollusk compatibile.
+solana-bpf-loader-program = "~4.2"
+solana-program-runtime = "~4.2"
+solana-compute-budget = "~4.2"
+solana-system-program = "~4.2"
+solana-syscalls = "~4.2"
+solana-transaction-context = "~4.2"

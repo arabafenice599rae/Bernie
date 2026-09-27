@@ -1,0 +1,13 @@
+{
+  "name": "bernie-frontend-test",
+  "private": true,
+  "type": "module",
+  "description": "Estrae i costruttori di istruzioni da frontend/index.html e genera le transazioni per il test Mollusk",
+  "scripts": {
+    "emit": "node emit.mjs",
+    "check": "node emit.mjs --check"
+  },
+  "dependencies": {
+    "@solana/web3.js": "1.98.4"
+  }
+}
