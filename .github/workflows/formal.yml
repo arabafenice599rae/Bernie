@@ -50,7 +50,7 @@ jobs:
   halmos:
     name: Halmos ${{ matrix.check }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 240   # i tempi di yices variano molto tra runner: 3–40 min misurati, alcuni oltre 45
     strategy:
       fail-fast: false
       matrix:
