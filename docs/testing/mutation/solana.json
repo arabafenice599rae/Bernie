@@ -112,9 +112,9 @@
   "desc": "redeem: rimosso supply == S dopo il burn",
   "kind": "text",
   "id": "t:redeem-no-supply-check-after",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 11.6
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: prima del burn check_supply verifica supply == S; BurnChecked di Token-2022 toglie esattamente u e S scende di u, quindi supply == S dopo il burn vale per costruzione (controllo difensivo contro un Token-2022 difettoso)",
+  "secs": 10.1
  },
  {
   "name": "redeem-no-solvency",
@@ -281,9 +281,9 @@
   "desc": "mint: rimosso supply == S dopo MintTo",
   "kind": "text",
   "id": "t:mint-no-supply-check-after",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.7
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: come per redeem, MintTo aggiunge esattamente u a supply e a S; supply == S dopo il mint vale per costruzione",
+  "secs": 10.5
  },
  {
   "name": "mint-no-solvency",
@@ -450,9 +450,9 @@
   "desc": "sweep: rimosso I2",
   "kind": "text",
   "id": "t:sweep-no-solvency",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.6
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: sweep_amount = disponibile − ⌈(R+Q)/SCALE⌉, quindi dopo lo sweep I2 vale per costruzione; il controllo resta come difesa",
+  "secs": 10.3
  },
  {
   "name": "sweep-no-supply-check",
@@ -684,9 +684,9 @@
   "desc": "move_lamports: underflow saturato invece che errore",
   "kind": "text",
   "id": "t:move-lamports-no-underflow-check",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.7
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: tutti i chiamanti muovono importi ≤ lamport disponibili (solvenza verificata prima); anche se non fosse, la saturazione creerebbe lamport e il runtime rifiuterebbe l'istruzione (UnbalancedInstruction), quindi nessun effetto osservabile diverso dal codice d'errore",
+  "secs": 10.2
  },
  {
   "id": "cm:program/src/lib.rs:53:5: replace process_instruction -> ProgramResult with Default::default()",
@@ -1080,9 +1080,9 @@
   "replacement": ">=",
   "category": "BinaryOperator",
   "desc": "program/src/processor/mod.rs:87:16: replace > with >= in create_account",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.6
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: con missing = 0 il mutante invia un Transfer di 0 lamport; trasferimento di 0 lamport: il System program lo accetta senza effetti (cambia solo il consumo di CU)",
+  "secs": 10.2
  },
  {
   "id": "cm:program/src/token.rs:15:54: replace + with -",
@@ -1157,8 +1157,8 @@
   "replacement": "0",
   "category": "FnValue",
   "desc": "program/src/token.rs:20:5: replace metadata_tlv_len -> usize with 0",
-  "status": "SURVIVED",
-  "killed_by": "",
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
   "secs": 7.7
  },
  {
@@ -1168,9 +1168,9 @@
   "replacement": "1",
   "category": "FnValue",
   "desc": "program/src/token.rs:20:5: replace metadata_tlv_len -> usize with 1",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.7
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 7.4
  },
  {
   "id": "cm:program/src/token.rs:20:57: replace + with - in metadata_tlv_len",
@@ -1179,9 +1179,9 @@
   "replacement": "-",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:57: replace + with - in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.3
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 7.9
  },
  {
   "id": "cm:program/src/token.rs:20:57: replace + with * in metadata_tlv_len",
@@ -1190,9 +1190,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:57: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.6
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 8.3
  },
  {
   "id": "cm:program/src/token.rs:20:45: replace + with - in metadata_tlv_len",
@@ -1212,9 +1212,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:45: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.8
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 8.0
  },
  {
   "id": "cm:program/src/token.rs:20:30: replace + with - in metadata_tlv_len",
@@ -1223,9 +1223,9 @@
   "replacement": "-",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:30: replace + with - in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.7
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 8.3
  },
  {
   "id": "cm:program/src/token.rs:20:30: replace + with * in metadata_tlv_len",
@@ -1234,9 +1234,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:30: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.5
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 7.8
  },
  {
   "id": "cm:program/src/token.rs:20:17: replace + with - in metadata_tlv_len",
@@ -1245,9 +1245,9 @@
   "replacement": "-",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:17: replace + with - in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.6
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 8.1
  },
  {
   "id": "cm:program/src/token.rs:20:17: replace + with * in metadata_tlv_len",
@@ -1256,9 +1256,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:17: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.7
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 8.1
  },
  {
   "id": "cm:program/src/token.rs:20:12: replace + with - in metadata_tlv_len",
@@ -1267,9 +1267,9 @@
   "replacement": "-",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:12: replace + with - in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.7
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 7.8
  },
  {
   "id": "cm:program/src/token.rs:20:12: replace + with * in metadata_tlv_len",
@@ -1278,9 +1278,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:12: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.2
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 8.2
  },
  {
   "id": "cm:program/src/token.rs:20:7: replace + with - in metadata_tlv_len",
@@ -1300,9 +1300,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:7: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.5
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 11.5
  },
  {
   "id": "cm:program/src/token.rs:20:22: replace + with - in metadata_tlv_len",
@@ -1311,9 +1311,9 @@
   "replacement": "-",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:22: replace + with - in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.4
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 9.3
  },
  {
   "id": "cm:program/src/token.rs:20:22: replace + with * in metadata_tlv_len",
@@ -1322,9 +1322,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:22: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.3
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 10.3
  },
  {
   "id": "cm:program/src/token.rs:20:35: replace + with - in metadata_tlv_len",
@@ -1333,9 +1333,9 @@
   "replacement": "-",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:35: replace + with - in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.0
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 9.1
  },
  {
   "id": "cm:program/src/token.rs:20:35: replace + with * in metadata_tlv_len",
@@ -1344,9 +1344,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:35: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.2
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 9.6
  },
  {
   "id": "cm:program/src/token.rs:20:50: replace + with - in metadata_tlv_len",
@@ -1366,9 +1366,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:20:50: replace + with * in metadata_tlv_len",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.2
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 12.9
  },
  {
   "id": "cm:program/src/token.rs:27:5: replace check_program -> ProgramResult with Default::default()",
@@ -1443,9 +1443,9 @@
   "replacement": "==",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:39:16: replace < with == in mint_supply",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 7.9
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: vault::load lega il mint all'indirizzo registrato nel vault, che è sempre un mint Token-2022 con MetadataPointer e TokenMetadata (> 82 byte); un account Token-2022 inizializzato più corto di 82 byte non esiste",
+  "secs": 15.9
  },
  {
   "id": "cm:program/src/token.rs:39:16: replace < with > in mint_supply",
@@ -1465,9 +1465,9 @@
   "replacement": "<=",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:39:16: replace < with <= in mint_supply",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 15.2
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: rifiuterebbe solo un mint Token-2022 di esattamente 82 byte (senza estensioni); il mint di Bernie, vincolato dal vault, ha sempre le estensioni e non è mai lungo 82 byte",
+  "secs": 14.7
  },
  {
   "id": "cm:program/src/token.rs:39:30: replace != with == in mint_supply",
@@ -1608,9 +1608,9 @@
   "replacement": "",
   "category": "MatchArm",
   "desc": "program/src/token.rs:73:9: delete match arm 0 in token_account",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 13.2
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT rispetto alla specifica: Token-2022 mantiene delegate = None ⇒ delegated_amount = 0 (revoke e l'uso completo azzerano entrambi) ma non cancella i byte del vecchio delegato. Il mutante legge quel delegato; per u ≥ 1 serve delegated_amount ≥ u e l'errore resta MissingDelegation; per u = 0 l'errore diventa ZeroAmount invece di MissingDelegation. La specifica non fissa la precedenza tra i due errori (l'oracolo ammette entrambi) e lo stato non cambia",
+  "secs": 14.0
  },
  {
   "id": "cm:program/src/token.rs:95:5: replace initialize_metadata -> ProgramResult with Default::default()",
@@ -1641,9 +1641,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:95:58: replace + with * in initialize_metadata",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 13.9
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici",
+  "secs": 12.9
  },
  {
   "id": "cm:program/src/token.rs:95:45: replace + with - in initialize_metadata",
@@ -1663,9 +1663,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:95:45: replace + with * in initialize_metadata",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 14.4
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici",
+  "secs": 12.0
  },
  {
   "id": "cm:program/src/token.rs:95:34: replace + with - in initialize_metadata",
@@ -1685,9 +1685,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:95:34: replace + with * in initialize_metadata",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 13.5
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici",
+  "secs": 11.6
  },
  {
   "id": "cm:program/src/token.rs:95:26: replace + with - in initialize_metadata",
@@ -1707,9 +1707,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/token.rs:95:26: replace + with * in initialize_metadata",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 14.9
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici",
+  "secs": 11.8
  },
  {
   "id": "cm:program/src/token.rs:95:30: replace * with + in initialize_metadata",
@@ -2345,9 +2345,9 @@
   "replacement": "()",
   "category": "FnValue",
   "desc": "program/src/vault.rs:123:5: replace log_state with ()",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 9.5
+  "status": "KILLED",
+  "killed_by": "state_log_matches_vault_after_every_operation",
+  "secs": 9.4
  },
  {
   "id": "cm:program/src/processor/create.rs:18:5: replace process -> ProgramResult with Default::default()",
@@ -2389,9 +2389,9 @@
   "replacement": "*",
   "category": "BinaryOperator",
   "desc": "program/src/processor/create.rs:55:38: replace + with * in process",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 9.5
+  "status": "KILLED",
+  "killed_by": "create_funds_exact_rent_for_final_sizes",
+  "secs": 10.2
  },
  {
   "id": "cm:program/src/processor/donate.rs:9:5: replace process -> ProgramResult with Default::default()",
@@ -2444,9 +2444,9 @@
   "replacement": ">=",
   "category": "BinaryOperator",
   "desc": "program/src/processor/mint.rs:49:28: replace > with >= in process",
-  "status": "SURVIVED",
-  "killed_by": "",
-  "secs": 9.5
+  "status": "EQUIVALENT",
+  "killed_by": "EQUIVALENT: con fee di protocollo 0 il mutante invia un Transfer di 0 lamport alla tesoreria; trasferimento di 0 lamport: il System program lo accetta senza effetti (cambia solo il consumo di CU)",
+  "secs": 9.8
  },
  {
   "id": "cm:program/src/processor/redeem.rs:19:5: replace process -> ProgramResult with Default::default()",

@@ -1,41 +1,22 @@
 # Mutation testing: solana
 
-Generato da `tools/mutation/mutate.py solana`. COMPILE_ERROR: 36, KILLED: 155, SURVIVED: 32
+Generato da `tools/mutation/mutate.py solana`. COMPILE_ERROR: 36, EQUIVALENT: 13, KILLED: 174
 
-| Esito | Mutante | Rilevato da |
+| Esito | Mutante | Rilevato da (o motivo dell'equivalenza) |
 |---|---|---|
-| SURVIVED | program/src/processor/create.rs:55:38: replace + with * in process |  |
-| SURVIVED | program/src/processor/mint.rs:49:28: replace > with >= in process |  |
-| SURVIVED | program/src/processor/mod.rs:87:16: replace > with >= in create_account |  |
-| SURVIVED | program/src/token.rs:20:12: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:12: replace + with - in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:17: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:17: replace + with - in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:22: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:22: replace + with - in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:30: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:30: replace + with - in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:35: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:35: replace + with - in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:45: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:50: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:57: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:57: replace + with - in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:20:5: replace metadata_tlv_len -> usize with 0 |  |
-| SURVIVED | program/src/token.rs:20:5: replace metadata_tlv_len -> usize with 1 |  |
-| SURVIVED | program/src/token.rs:20:7: replace + with * in metadata_tlv_len |  |
-| SURVIVED | program/src/token.rs:39:16: replace < with <= in mint_supply |  |
-| SURVIVED | program/src/token.rs:39:16: replace < with == in mint_supply |  |
-| SURVIVED | program/src/token.rs:73:9: delete match arm 0 in token_account |  |
-| SURVIVED | program/src/token.rs:95:26: replace + with * in initialize_metadata |  |
-| SURVIVED | program/src/token.rs:95:34: replace + with * in initialize_metadata |  |
-| SURVIVED | program/src/token.rs:95:45: replace + with * in initialize_metadata |  |
-| SURVIVED | program/src/token.rs:95:58: replace + with * in initialize_metadata |  |
-| SURVIVED | program/src/vault.rs:123:5: replace log_state with () |  |
-| SURVIVED | mint: rimosso supply == S dopo MintTo |  |
-| SURVIVED | move_lamports: underflow saturato invece che errore |  |
-| SURVIVED | redeem: rimosso supply == S dopo il burn |  |
-| SURVIVED | sweep: rimosso I2 |  |
+| EQUIVALENT | program/src/processor/mint.rs:49:28: replace > with >= in process | EQUIVALENT: con fee di protocollo 0 il mutante invia un Transfer di 0 lamport alla tesoreria; trasferimento di 0 lamport: il System program lo accetta senza effetti (cambia solo il consumo di CU) |
+| EQUIVALENT | program/src/processor/mod.rs:87:16: replace > with >= in create_account | EQUIVALENT: con missing = 0 il mutante invia un Transfer di 0 lamport; trasferimento di 0 lamport: il System program lo accetta senza effetti (cambia solo il consumo di CU) |
+| EQUIVALENT | program/src/token.rs:39:16: replace < with <= in mint_supply | EQUIVALENT: rifiuterebbe solo un mint Token-2022 di esattamente 82 byte (senza estensioni); il mint di Bernie, vincolato dal vault, ha sempre le estensioni e non è mai lungo 82 byte |
+| EQUIVALENT | program/src/token.rs:39:16: replace < with == in mint_supply | EQUIVALENT: vault::load lega il mint all'indirizzo registrato nel vault, che è sempre un mint Token-2022 con MetadataPointer e TokenMetadata (> 82 byte); un account Token-2022 inizializzato più corto di 82 byte non esiste |
+| EQUIVALENT | program/src/token.rs:73:9: delete match arm 0 in token_account | EQUIVALENT rispetto alla specifica: Token-2022 mantiene delegate = None ⇒ delegated_amount = 0 (revoke e l'uso completo azzerano entrambi) ma non cancella i byte del vecchio delegato. Il mutante legge quel delegato; per u ≥ 1 serve delegated_amount ≥ u e l'errore resta MissingDelegation; per u = 0 l'errore diventa ZeroAmount invece di MissingDelegation. La specifica non fissa la precedenza tra i due errori (l'oracolo ammette entrambi) e lo stato non cambia |
+| EQUIVALENT | program/src/token.rs:95:26: replace + with * in initialize_metadata | EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici |
+| EQUIVALENT | program/src/token.rs:95:34: replace + with * in initialize_metadata | EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici |
+| EQUIVALENT | program/src/token.rs:95:45: replace + with * in initialize_metadata | EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici |
+| EQUIVALENT | program/src/token.rs:95:58: replace + with * in initialize_metadata | EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici |
+| EQUIVALENT | mint: rimosso supply == S dopo MintTo | EQUIVALENT: come per redeem, MintTo aggiunge esattamente u a supply e a S; supply == S dopo il mint vale per costruzione |
+| EQUIVALENT | move_lamports: underflow saturato invece che errore | EQUIVALENT: tutti i chiamanti muovono importi ≤ lamport disponibili (solvenza verificata prima); anche se non fosse, la saturazione creerebbe lamport e il runtime rifiuterebbe l'istruzione (UnbalancedInstruction), quindi nessun effetto osservabile diverso dal codice d'errore |
+| EQUIVALENT | redeem: rimosso supply == S dopo il burn | EQUIVALENT: prima del burn check_supply verifica supply == S; BurnChecked di Token-2022 toglie esattamente u e S scende di u, quindi supply == S dopo il burn vale per costruzione (controllo difensivo contro un Token-2022 difettoso) |
+| EQUIVALENT | sweep: rimosso I2 | EQUIVALENT: sweep_amount = disponibile − ⌈(R+Q)/SCALE⌉, quindi dopo lo sweep I2 vale per costruzione; il controllo resta come difesa |
 | COMPILE_ERROR | program/src/lib.rs:103:9: replace Reader<'a>::finish -> ProgramResult with Default::default() | ) error[E0277]: the trait bound `Result<(), ProgramError>: Default` is not satis |
 | COMPILE_ERROR | program/src/lib.rs:53:5: replace process_instruction -> ProgramResult with Default::default() | olana/program) error[E0277]: the trait bound `Result<(), ProgramError>: Default` |
 | COMPILE_ERROR | program/src/lib.rs:68:5: replace err -> ProgramError with Default::default() | p/claude-0/mutwork-sol/solana/program) error[E0277]: the trait bound `ProgramErr |
@@ -85,6 +66,7 @@ Generato da `tools/mutation/mutate.py solana`. COMPILE_ERROR: 36, KILLED: 155, S
 | KILLED | program/src/lib.rs:93:9: replace Reader<'a>::u64 -> Result<u64, ProgramError> with Ok(0) | forged_vault_owned_by_another_program |
 | KILLED | program/src/lib.rs:93:9: replace Reader<'a>::u64 -> Result<u64, ProgramError> with Ok(1) | account_permutations_and_duplicates_are_rejected |
 | KILLED | program/src/processor/create.rs:41:28: replace != with == in process | cross_market_vault_and_mint_are_rejected |
+| KILLED | program/src/processor/create.rs:55:38: replace + with * in process | create_funds_exact_rent_for_final_sizes |
 | KILLED | program/src/processor/create.rs:55:38: replace + with - in process | cross_market_vault_and_mint_are_rejected |
 | KILLED | program/src/processor/mint.rs:49:28: replace > with < in process | differential_sequences |
 | KILLED | program/src/processor/mint.rs:49:28: replace > with == in process | differential_sequences |
@@ -119,8 +101,25 @@ Generato da `tools/mutation/mutate.py solana`. COMPILE_ERROR: 36, KILLED: 155, S
 | KILLED | program/src/token.rs:15:50: replace + with - | account_permutations_and_duplicates_are_rejected |
 | KILLED | program/src/token.rs:15:54: replace + with * | cross_market_vault_and_mint_are_rejected |
 | KILLED | program/src/token.rs:15:54: replace + with - | account_permutations_and_duplicates_are_rejected |
+| KILLED | program/src/token.rs:20:12: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:12: replace + with - in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:17: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:17: replace + with - in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:22: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:22: replace + with - in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:30: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:30: replace + with - in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:35: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:35: replace + with - in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:45: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
 | KILLED | program/src/token.rs:20:45: replace + with - in metadata_tlv_len | compute_units |
+| KILLED | program/src/token.rs:20:50: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
 | KILLED | program/src/token.rs:20:50: replace + with - in metadata_tlv_len | compute_units |
+| KILLED | program/src/token.rs:20:57: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:57: replace + with - in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:5: replace metadata_tlv_len -> usize with 0 | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:5: replace metadata_tlv_len -> usize with 1 | create_funds_exact_rent_for_final_sizes |
+| KILLED | program/src/token.rs:20:7: replace + with * in metadata_tlv_len | create_funds_exact_rent_for_final_sizes |
 | KILLED | program/src/token.rs:27:32: replace != with == in check_program | account_permutations_and_duplicates_are_rejected |
 | KILLED | program/src/token.rs:35:5: replace mint_supply -> Result<u64, ProgramError> with Ok(0) | forged_vault_owned_by_another_program |
 | KILLED | program/src/token.rs:35:5: replace mint_supply -> Result<u64, ProgramError> with Ok(1) | account_permutations_and_duplicates_are_rejected |
@@ -150,6 +149,7 @@ Generato da `tools/mutation/mutate.py solana`. COMPILE_ERROR: 36, KILLED: 155, S
 | KILLED | program/src/vault.rs:103:26: replace + with - in store | account_permutations_and_duplicates_are_rejected |
 | KILLED | program/src/vault.rs:109:5: replace available -> Result<u64, ProgramError> with Ok(0) | insolvent_vault_refuses_every_operation |
 | KILLED | program/src/vault.rs:109:5: replace available -> Result<u64, ProgramError> with Ok(1) | account_permutations_and_duplicates_are_rejected |
+| KILLED | program/src/vault.rs:123:5: replace log_state with () | state_log_matches_vault_after_every_operation |
 | KILLED | program/src/vault.rs:38:32: replace + with * in u128_at | account_permutations_and_duplicates_are_rejected |
 | KILLED | program/src/vault.rs:38:32: replace + with - in u128_at | cross_market_vault_and_mint_are_rejected |
 | KILLED | program/src/vault.rs:38:5: replace u128_at -> u128 with 0 | insolvent_vault_refuses_every_operation |
