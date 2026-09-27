@@ -39,10 +39,23 @@ fn nums(v: &Value) -> Vec<u128> {
     v.as_array().unwrap().iter().map(num).collect()
 }
 
+/// Esito di un passo: errore di istruzione, oppure transazione rifiutata dal runtime perché
+/// lascerebbe un account "rent-paying" (Mollusk non applica questo controllo, vedi `exec`).
+#[derive(Debug)]
+enum Fail {
+    Ix(InstructionError),
+    /// L'account che resterebbe rent-paying (stampato nei messaggi di divergenza).
+    RentState(#[allow(dead_code)] Pubkey),
+}
+
 /// Nome dell'errore osservato, confrontato con l'insieme ammesso dall'oracolo.
 /// Il codice custom 1 è ambiguo tra ZeroAmount (Bernie), InsufficientFunds (Token-2022)
 /// e ResultWithNegativeLamports (System): vale per chiunque dei tre sia ammesso.
-fn matches(actual: &InstructionError, allowed: &[String]) -> bool {
+fn matches(actual: &Fail, allowed: &[String]) -> bool {
+    let actual = match actual {
+        Fail::RentState(_) => return allowed.iter().any(|n| n == "InsufficientNative"),
+        Fail::Ix(e) => e,
+    };
     allowed.iter().any(|name| match (name.as_str(), actual) {
         ("InsufficientTokens", InstructionError::Custom(1)) => true,
         ("InsufficientNative", InstructionError::Custom(1)) => true,
@@ -108,6 +121,35 @@ impl Harness {
             .into_iter()
             .map(|k| (k, self.env.account(&k)))
             .collect()
+    }
+
+    /// Esegue la transazione e applica la regola di transizione dello stato di rent del
+    /// runtime (Agave `svm-rent-collector`), che Mollusk non controlla: un account scritto
+    /// può finire a 0 lamport o rent-exempt; resta rent-paying solo se lo era già, con la
+    /// stessa dimensione e senza guadagnare lamport. Se la regola non vale la transazione
+    /// non entra: lo store torna com'era.
+    fn exec(&self, ixs: &[Instruction]) -> Result<(), Fail> {
+        let saved = self.env.ctx.account_store.borrow().clone();
+        self.env.run(ixs).raw.map_err(Fail::Ix)?;
+        let rent = &self.env.ctx.mollusk.sysvars.rent;
+        let paying = |a: &Account| a.lamports > 0 && !rent.is_exempt(a.lamports, a.data.len());
+        let store = self.env.ctx.account_store.borrow();
+        let bad = store.iter().find(|(k, post)| {
+            let pre = saved.get(k);
+            paying(post)
+                && !pre.is_some_and(|pre| {
+                    paying(pre)
+                        && pre.data.len() == post.data.len()
+                        && post.lamports <= pre.lamports
+                })
+        });
+        if let Some((k, _)) = bad {
+            let k = *k;
+            drop(store);
+            *self.env.ctx.account_store.borrow_mut() = saved;
+            return Err(Fail::RentState(k));
+        }
+        Ok(())
     }
 
     fn delegated(&self, i: usize) -> u128 {
@@ -230,7 +272,7 @@ fn run_sequence(path: &PathBuf) -> usize {
     let steps = seq["steps"].as_array().unwrap();
     for (i, s) in steps.iter().enumerate() {
         let before = h.snapshot();
-        let out = h.env.run(&h.ixs(s));
+        let out = h.exec(&h.ixs(s));
         let ctx = || {
             format!(
                 "\nseed {} passo {} ({}): {}\natteso {}\nesito {:?}",
@@ -239,10 +281,10 @@ fn run_sequence(path: &PathBuf) -> usize {
                 path.display(),
                 s,
                 s["expect"],
-                out.raw
+                out
             )
         };
-        match (&out.raw, s["expect"]["ok"].as_bool() == Some(true)) {
+        match (&out, s["expect"]["ok"].as_bool() == Some(true)) {
             (Ok(()), true) => {}
             (Err(e), false) => {
                 let allowed: Vec<String> = s["expect"]["err"]
@@ -339,4 +381,32 @@ fn differential_sequences() {
         steps,
         t.elapsed().as_secs_f64()
     );
+}
+
+/// Regressione (marathon seed 777, sequenza 1413): un mint che lascerebbe il pagatore sotto
+/// il rent-exempt non entra on-chain, anche se il programma non lo controlla da sé.
+/// Confini calcolati con l'oracolo: P = 10⁶, u = 10⁶ costa 1004 lamport, rent = 890 880.
+#[test]
+fn payer_cannot_end_rent_paying() {
+    for (wallet, ok) in [(891_883u64, false), (891_884, true)] {
+        let seq = serde_json::json!({
+            "P": "1000000", "p": "100", "e": "0",
+            "wallets": ["1000000000000000000", wallet.to_string()],
+        });
+        let h = Harness::new(&seq);
+        let before = h.snapshot();
+        let ix = h.env.mint_ix(&h.users[1], &h.atas[1], 0, 1_000_000, wallet);
+        match h.exec(&[ix]) {
+            Ok(()) => {
+                assert!(ok, "wallet {wallet}: il mint doveva essere rifiutato");
+                assert_eq!(h.env.lamports(&h.users[1]), wallet - 1004);
+            }
+            Err(Fail::RentState(k)) => {
+                assert!(!ok, "wallet {wallet}: mint rifiutato");
+                assert_eq!(k, h.users[1]);
+                assert!(before == h.snapshot(), "store non ripristinato");
+            }
+            Err(e) => panic!("wallet {wallet}: errore inatteso {e:?}"),
+        }
+    }
 }
