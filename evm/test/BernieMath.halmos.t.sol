@@ -64,37 +64,57 @@ contract BernieMathHalmos {
 
     /// Penalità fisse (riferimento 2% / 1%): con p ed e simbolici i prodotti a 256 bit non
     /// chiudono in 40 minuti. Tutte le combinazioni di p ed e sono coperte dai vettori e da Kani.
+    /// S e Q fino a 31, quindi u = 17 copre anche redeem con u ≤ S e u > S.
     uint256 constant P_REF = 200;
     uint256 constant E_REF = 100;
 
-    function check_mint(uint8 k8, uint8 s8, uint8 q8, uint8 u8) public view {
+    /// u concreto (1, 3, 17): con u e k entrambi simbolici i prodotti a 256 bit non chiudono
+    /// in 40 minuti. k, S e Q restano simbolici; gli altri u sono coperti da Kani e dai vettori.
+    function check_mint_u1(uint8 k8, uint8 s8, uint8 q8) public view {
+        _mint(k8, s8, q8, 1);
+    }
+
+    function check_mint_u3(uint8 k8, uint8 s8, uint8 q8) public view {
+        _mint(k8, s8, q8, 3);
+    }
+
+    function check_mint_u17(uint8 k8, uint8 s8, uint8 q8) public view {
+        _mint(k8, s8, q8, 17);
+    }
+
+    function check_redeem_u1(uint8 k8, uint8 s8, uint8 q8) public view {
+        _redeem(k8, s8, q8, 1);
+    }
+
+    function check_redeem_u3(uint8 k8, uint8 s8, uint8 q8) public view {
+        _redeem(k8, s8, q8, 3);
+    }
+
+    function check_redeem_u17(uint8 k8, uint8 s8, uint8 q8) public view {
+        _redeem(k8, s8, q8, 17);
+    }
+
+    function _mint(uint8 k8, uint8 s8, uint8 q8, uint256 u) internal view {
         BernieMath.State memory s0 = _canonical(k8, s8, q8);
-        uint256 e = E_REF;
-        uint256 u = u8 & 0x1f;
-        require(u >= 1);
-        try this.doMint(s0, e, u) returns (BernieMath.State memory s, uint256 c, BernieMath.Fees memory f) {
+        try this.doMint(s0, E_REF, u) returns (BernieMath.State memory s, uint256 c, BernieMath.Fees memory f) {
             assert(_isCanonical(s));
             assert(s.k >= s0.k);
             assert(s.R + s.Q == s0.R + s0.Q + c * SC); // entra solo c·SCALE, le fee restano fuori
-            uint256 full = u * s.k;
-            assert(BernieMath.cdiv(full, SC) <= c); // b ≤ c
+            assert(BernieMath.cdiv(u * s.k, SC) <= c); // b ≤ c
             assert(f.creator + f.protocol == f.total);
         } catch (bytes memory reason) {
             _notInvariant(reason);
         }
     }
 
-    function check_redeem(uint8 k8, uint8 s8, uint8 q8, uint8 u8) public view {
+    function _redeem(uint8 k8, uint8 s8, uint8 q8, uint256 u) internal view {
         BernieMath.State memory s0 = _canonical(k8, s8, q8);
-        uint256 p = P_REF;
-        uint256 u = u8 & 0x1f;
-        require(u >= 1);
-        try this.doRedeem(s0, p, u) returns (BernieMath.State memory s, uint256 g, uint256 out, BernieMath.Fees memory) {
+        try this.doRedeem(s0, P_REF, u) returns (BernieMath.State memory s, uint256 g, uint256 out, BernieMath.Fees memory) {
             assert(_isCanonical(s));
             assert(s.k >= s0.k);
             assert(out <= g);
             uint256 full = u * s0.k;
-            assert(g * SC <= full - BernieMath.cdiv(full * p, BernieMath.BPS));
+            assert(g * SC <= full - BernieMath.cdiv(full * P_REF, BernieMath.BPS));
             if (s.S > 0) assert(s.R + s.Q == s0.R + s0.Q - g * SC);
         } catch (bytes memory reason) {
             _notInvariant(reason);

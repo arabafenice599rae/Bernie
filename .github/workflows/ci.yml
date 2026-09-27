@@ -162,7 +162,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [check_absorb, check_mint, check_redeem, check_donate, check_fees]
+        check: [check_absorb, check_donate, check_fees, check_mint_u1, check_mint_u3, check_mint_u17, check_redeem_u1, check_redeem_u3, check_redeem_u17]
     defaults:
       run:
         working-directory: evm
