@@ -199,6 +199,63 @@ contract BernieTest is Test {
         assertEq(token.k(), k0 + 1e15 * 1e18 / 1e18);
     }
 
+    // ── ritiro delle fee per conto di un account (claimFeesFor, claimAll) ──
+
+    function test_claimFeesFor_pays_the_account_not_the_caller() public {
+        _mint(ALICE, 3e18);
+        uint256 owed = token.feesOwed(TREASURY);
+        assertGt(owed, 0);
+        uint256 bobBefore = BOB.balance;
+        vm.prank(BOB); // chiunque può chiamarla...
+        token.claimFeesFor(TREASURY);
+        assertEq(TREASURY.balance, owed, "...ma paga solo la tesoreria");
+        assertEq(BOB.balance, bobBefore, "il chiamante non riceve nulla");
+        assertEq(token.feesOwed(TREASURY), 0);
+        assertEq(token.feesOwed(CREATOR), owed, "le fee del creator restano intatte");
+        vm.expectRevert(NothingToClaim.selector);
+        token.claimFeesFor(TREASURY);
+    }
+
+    function test_claimAll_collects_every_token_in_one_call() public {
+        vm.prank(BOB);
+        Bernie t2 = Bernie(factory.create(P, 300, 0, "Due", "DUE", bytes32("2")));
+        vm.prank(BOB);
+        Bernie t3 = Bernie(factory.create(P, 300, 0, "Tre", "TRE", bytes32("3")));
+        _mint(ALICE, 3e18);
+        vm.prank(ALICE);
+        t2.mint{value: 1 ether}(5e18);
+        // t3 senza operazioni: nessuna fee, viene saltato.
+        uint256 expected = token.feesOwed(TREASURY) + t2.feesOwed(TREASURY);
+        address[] memory list = new address[](3);
+        (list[0], list[1], list[2]) = (address(token), address(t2), address(t3));
+
+        assertEq(factory.treasury(), TREASURY);
+        vm.prank(ALICE); // anche un estraneo: i fondi vanno comunque alla tesoreria
+        factory.claimAll(TREASURY, list);
+        assertEq(TREASURY.balance, expected);
+        assertEq(token.feesOwed(TREASURY) + t2.feesOwed(TREASURY), 0);
+        assertGt(token.feesOwed(CREATOR), 0, "le fee dei creator non si toccano");
+        assertGt(t2.feesOwed(BOB), 0);
+
+        vm.expectRevert(NothingToClaim.selector);
+        factory.claimAll(TREASURY, list);
+    }
+
+    function test_claimAll_for_creator_across_tokens() public {
+        vm.prank(CREATOR);
+        Bernie t2 = Bernie(factory.create(P, 300, 0, "Due", "DUE", bytes32("c2")));
+        _mint(ALICE, 3e18);
+        vm.prank(ALICE);
+        t2.mint{value: 1 ether}(5e18);
+        uint256 expected = token.feesOwed(CREATOR) + t2.feesOwed(CREATOR);
+        address[] memory list = new address[](2);
+        (list[0], list[1]) = (address(token), address(t2));
+        uint256 before = CREATOR.balance;
+        vm.prank(CREATOR);
+        factory.claimAll(CREATOR, list);
+        assertEq(CREATOR.balance - before, expected);
+    }
+
     // ── sicurezza ──
 
     function test_transfer_to_self_rejected() public {
@@ -257,5 +314,8 @@ contract BernieTest is Test {
         assertEq(BernieFactory.Created.selector, IBernieFactory.Created.selector);
         assertEq(factory.implementation.selector, IBernieFactory.implementation.selector);
         assertEq(token.treasury.selector, IBernie.treasury.selector);
+        assertEq(token.claimFeesFor.selector, IBernie.claimFeesFor.selector);
+        assertEq(factory.claimAll.selector, IBernieFactory.claimAll.selector);
+        assertEq(factory.treasury.selector, IBernieFactory.treasury.selector);
     }
 }

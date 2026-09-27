@@ -108,6 +108,20 @@ def main():
     for sig in sorted(s11_events ^ set(events)):
         errors.append(f"evento non allineato tra §11 e Appendice B: {sig}")
 
+    # Il frontend (SEL e TOPIC in frontend/index.html) deve usare gli stessi selettori e topic.
+    with open(os.path.join(ROOT, "frontend", "index.html"), encoding="utf-8") as f:
+        html = f.read()
+    by_name = {sig.split("(")[0]: h for sig, h in {**funcs, **ERC20}.items()}
+    ev_by_name = {sig.split("(")[0].lower(): h for sig, h in events.items()}
+    sel = dict(re.findall(r"(\w+):'(0x[0-9a-f]{8})'", re.search(r"const SEL = \{(.*?)\};", html).group(1)))
+    top = dict(re.findall(r"(\w+):'(0x[0-9a-f]{64})'", re.search(r"const TOPIC = \{(.*?)\};", html).group(1)))
+    for name, h in sel.items():
+        if by_name.get(name) != h:
+            errors.append(f"frontend SEL.{name} = {h}, README {by_name.get(name)}")
+    for name, h in top.items():
+        if ev_by_name.get(name) != h:
+            errors.append(f"frontend TOPIC.{name} = {h}, README {ev_by_name.get(name)}")
+
     solc = os.environ.get("SOLC") or shutil.which("solc")
     if solc:
         c_funcs, c_events = solc_hashes(solc)
@@ -126,7 +140,8 @@ def main():
     if errors:
         print("\n".join("ERRORE " + e for e in errors))
         return 1
-    print(f"ok: {len(funcs)} selettori, {len(events)} topic, {len(ERC20)} selettori ERC-20")
+    print(f"ok: {len(funcs)} selettori, {len(events)} topic, {len(ERC20)} selettori ERC-20, "
+          f"frontend {len(sel)} selettori e {len(top)} topic")
     return 0
 
 
