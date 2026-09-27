@@ -31,8 +31,12 @@ const treasuries = [new W.PublicKey(treasuryB58[0])];   // una sola: pickTreasur
 const cfg = { priority: 1000 };
 const code = [region('CONST'), region('ENC'), region('IX')].join('\n');
 const api = new Function('W', 'programId', 'treasuries', 'cfg',
-  `'use strict';\n${code}\nreturn { TAG, ERR_CODES, CU_LIMIT, ixCreate, ixMint, ixApprove, ixRedeem, ixDonate, ixSweep, ixAta, withBudget, vaultPda, ataOf };`,
+  `'use strict';\n${code}\nreturn { PRESETS, TAG, ERR_CODES, CU_LIMIT, ixCreate, ixMint, ixApprove, ixRedeem, ixDonate, ixSweep, ixAta, withBudget, vaultPda, ataOf };`,
 )(W, programId, treasuries, cfg);
+
+// Il preset Devnet deve puntare al programma e alle tesorerie compilate in lib.rs.
+if (api.PRESETS.devnet.program !== programB58) throw new Error(`PRESETS.devnet.program ${api.PRESETS.devnet.program} ≠ declare_id ${programB58}`);
+if (api.PRESETS.devnet.treasury !== treasuryB58.join(',')) throw new Error('PRESETS.devnet.treasury diverso da TREASURIES in lib.rs');
 
 const key = n => new W.PublicKey(new Uint8Array(32).fill(n));
 const creator = key(1), user = key(2), mint = key(3), whale = key(4);

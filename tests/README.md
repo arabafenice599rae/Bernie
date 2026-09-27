@@ -35,5 +35,6 @@ il test fallisce.
 ## Workflow
 
 - `.github/workflows/ci.yml`: tutto tranne la verifica formale, a ogni push e PR (più il fuzz notturno).
+- `.github/workflows/pages.yml`: pubblica `frontend/index.html` su GitHub Pages dopo il merge su `main`.
 - `.github/workflows/formal.yml`: Kani e Halmos, solo quando cambiano `solana/state/**`,
   `evm/src/BernieMath.sol` o gli harness, ogni lunedì e a mano (costano centinaia di minuti).

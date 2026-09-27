@@ -17,6 +17,16 @@ questo file; le modifiche si fanno qui, non nell'artifact.
 
 I marcatori di commento (`/* CONST-BEGIN */` e simili) vanno mantenuti.
 
+## Pubblicazione e preset
+
+- **GitHub Pages:** `.github/workflows/pages.yml` pubblica `index.html` a ogni push su `main`
+  che lo modifica (richiede Settings → Pages → Source: GitHub Actions). Dentro claude.ai le
+  chiamate RPC sono bloccate, quindi l'artifact resta in modalità demo; per usare un wallet
+  si apre la pagina di Pages, per esempio dal browser integrato di Phantom.
+- **Preset Devnet:** nelle impostazioni compila RPC, Program ID, tesorerie e rete del deploy
+  su devnet. `test/emit.mjs` fallisce se `PRESETS.devnet` non coincide con `declare_id!` e
+  `TREASURIES` di `solana/program/src/lib.rs`.
+
 ## Dopo una modifica
 
 ```
