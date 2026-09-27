@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 /// Interfaccia normativa di §11 (Robinhood Chain). tools/abi_check.py la compila con solc

@@ -653,6 +653,16 @@ La cattura è la stessa struttura della JIT liquidity in Uniswap v3: chi esegue 
 3. Ottenere il parere legale.
 4. Congelare.
 
+## 21. Licenza e sicurezza
+
+Bernie è distribuito con la **Business Source License 1.1** (`LICENSE`): Licensor
+arabafenice, nessun Additional Use Grant, Change Date 2030-09-27, Change License
+GPL-2.0-or-later. Fino alla Change Date sono consentiti copia, modifica e uso non di
+produzione; l'uso in produzione richiede il permesso del Licensor. Le dipendenze
+mantengono le proprie licenze.
+
+Le vulnerabilità si segnalano in privato come descritto in `SECURITY.md`.
+
 ## Appendice A — Modello di riferimento (Python)
 
 ```python

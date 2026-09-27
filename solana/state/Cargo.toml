@@ -3,7 +3,7 @@ name = "bernie-state"
 version = "0.1.0"
 edition = "2021"
 description = "Bernie v1.6: funzioni pure di stato e aritmetica (§3–§7), generiche su SCALE"
-license = "MIT"
+license = "BUSL-1.1"
 publish = false
 
 [dependencies]

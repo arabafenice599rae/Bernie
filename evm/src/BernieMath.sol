@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.30;
 
 /// Errori di §7 (i codici numerici sono quelli del programma Solana).
