@@ -16,6 +16,9 @@ import "../src/BernieMath.sol";
 /// tesoreria, ETH ricevuti dalla tesoreria. In modo indipendente dall'oracolo verifica la
 /// conservazione dell'ETH. Le sequenze si leggono da `evm/diff/` (`evm_*.json`); senza file
 /// il test non fa nulla (la CI le genera prima).
+/// Solo per il test: la transazione non parte perché msg.value supera il saldo del wallet.
+error InsufficientNative();
+
 contract DifferentialTest is Test {
     using stdJson for string;
 
@@ -62,6 +65,7 @@ contract DifferentialTest is Test {
         if (s == NothingToClaim.selector) return 7;
         if (s == TransferToSelf.selector) return 8;
         if (s == IERC20Errors.ERC20InsufficientBalance.selector) return 9;
+        if (s == InsufficientNative.selector) return 10;
         if (s == bytes4(keccak256("Panic(uint256)"))) return 11;
         return type(uint256).max; // errore non previsto da nessun esito
     }
@@ -136,6 +140,10 @@ contract DifferentialTest is Test {
     function _exec(Bernie t, BernieFactory f, Seq memory q, uint256 s) internal returns (bool ok, bytes memory ret) {
         uint256 op = q.op[s];
         address a = user(q.a[s]);
+        // msg.value oltre il saldo: il wallet non può nemmeno inviare la transazione
+        if ((op == 1 && q.y[s] > a.balance) || (op == 3 && q.x[s] > a.balance)) {
+            return (false, abi.encodeWithSelector(InsufficientNative.selector));
+        }
         if (op == 1) {
             vm.prank(a);
             (ok, ret) = address(t).call{value: q.y[s]}(abi.encodeCall(Bernie.mint, (q.x[s])));

@@ -1,0 +1,8 @@
+[
+ {"id": "t:solvency-no-supply-check",
+  "reason": "EQUIVALENT: _state() legge S da totalSupply() e _mint/_burn muovono esattamente u, quindi totalSupply() == s.S vale per costruzione; il controllo è difensivo e non raggiungibile senza modificare altro codice"},
+ {"id": "del:evm/src/Bernie.sol:157",
+  "reason": "EQUIVALENT: stessa riga di t:solvency-no-supply-check (cancellazione del controllo totalSupply() != s.S), non raggiungibile per costruzione"},
+ {"id": "t:math-fee-double-rounding",
+  "reason": "EQUIVALENT con le costanti v1.6: ⌊⌊40b/10⁴⌋·20/40⌋ = ⌊⌊b/250⌋/2⌋ = ⌊b/500⌋ = ⌊20b/10⁴⌋ (identità dei floor annidati). Con FEE_C ≠ FEE_P il mutante diventerebbe osservabile e va riesaminato"}
+]

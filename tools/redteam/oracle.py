@@ -137,6 +137,8 @@ class Market:
     def mint(self, a, u, pay):
         """Solana: pay = max_cost. EVM: pay = msg.value (l'eccedenza torna indietro)."""
         def run():
+            if self.chain == "evm" and pay > self.native[a]:
+                raise Fail(NATIVE)                        # il wallet non può inviare msg.value
             v, total, c, fc, fp = self._math("mint", u)      # total = c + ft
             errs = []
             if total > pay:
@@ -192,6 +194,8 @@ class Market:
 
     def donate(self, a, x):
         def run():
+            if self.chain == "evm" and x > self.native[a]:
+                raise Fail(NATIVE)                        # il wallet non può inviare msg.value
             v, _, dbal, _, _ = self._math("donate", x)
             if self.chain == "sol" and self.native[a] - x < RENT0:
                 raise Fail(NATIVE)

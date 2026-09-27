@@ -216,7 +216,7 @@ def run(target, only=None, limit=None, keep_going=True):
     if target == "solana":
         muts = targeted("solana_targeted.json") + cargo_mutants("bernie-program")
     elif target == "state":
-        muts = targeted("state_targeted.json")
+        muts = targeted("state_targeted.json") + cargo_mutants("bernie-state", exclude="verification")
     else:
         muts = targeted("evm_targeted.json") + sol_operator_mutants()
     if only:
@@ -270,6 +270,17 @@ def killer(out):
     return "test failed"
 
 
+def classify_equivalent(results):
+    """Sopravvissuti già analisi a mano come equivalenti (equivalent.json, con motivazione)."""
+    with open(os.path.join(HERE, "equivalent.json")) as f:
+        eq = {e["id"]: e["reason"] for e in json.load(f)}
+    for r in results:
+        if r["status"] == "SURVIVED" and r["id"] in eq:
+            r["status"] = "EQUIVALENT"
+            r["killed_by"] = eq[r["id"]]
+    return results
+
+
 def report(target, results):
     os.makedirs(OUT, exist_ok=True)
     for r in results:
@@ -282,11 +293,12 @@ def report(target, results):
     lines = [f"# Mutation testing: {target}", "",
              "Generato da `tools/mutation/mutate.py " + target + "`. " +
              ", ".join(f"{k}: {v}" for k, v in sorted(counts.items())), "",
-             "| Esito | Mutante | Rilevato da |", "|---|---|---|"]
-    order = {"SURVIVED": 0, "NOT_APPLIED": 1, "TIMEOUT": 2, "COMPILE_ERROR": 3, "KILLED": 4}
+             "| Esito | Mutante | Rilevato da (o motivo dell'equivalenza) |", "|---|---|---|"]
+    order = {"SURVIVED": 0, "NOT_APPLIED": 1, "TIMEOUT": 2, "EQUIVALENT": 3, "COMPILE_ERROR": 4, "KILLED": 5}
     for r in sorted(results, key=lambda r: (order.get(r["status"], 9), r["id"])):
         desc = (r.get("desc") or r.get("name")).replace("|", "\\|")
-        by = (r.get("killed_by") or "").replace("|", "\\|").replace("\n", " ")[:80]
+        by = (r.get("killed_by") or "").replace("|", "\\|").replace("\n", " ")
+        by = by if r["status"] == "EQUIVALENT" else by[:80]
         lines.append(f"| {r['status']} | {desc} | {by} |")
     with open(os.path.join(OUT, f"{target}.md"), "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -299,6 +311,6 @@ if __name__ == "__main__":
     ap.add_argument("--only")
     ap.add_argument("--limit", type=int)
     a = ap.parse_args()
-    res = run(a.target, a.only, a.limit)
+    res = classify_equivalent(run(a.target, a.only, a.limit))
     report(a.target, res)
     sys.exit(1 if any(r["status"] == "SURVIVED" for r in res) else 0)
