@@ -526,6 +526,7 @@ html{ background:#000 }
   <div class="fieldrow"><span class="lbl">Priority fee (µlamport/CU)</span><div class="inp" style="margin-top:8px"><input id="cfgPrio" inputmode="numeric"></div></div>
   <div class="fieldrow"><span class="lbl" data-i18n="settings.net">Rete</span><div class="inp" style="margin-top:8px"><input id="cfgNet"></div></div>
   <div class="sectlbl"><span class="ch rh">RH</span> Robinhood Chain</div>
+  <div class="fieldrow"><span class="lbl" data-i18n="settings.preset">Preset</span><div style="margin-top:8px"><button class="chip" id="cfgPresetTestnet">Testnet</button></div></div>
   <div class="fieldrow"><span class="lbl">RPC</span><div class="inp" style="margin-top:8px"><input id="cfgEvmRpc"></div></div>
   <div class="fieldrow"><span class="lbl">Factory</span><div class="inp" style="margin-top:8px"><input id="cfgFactory" placeholder="0x…"></div></div>
   <div class="fieldrow"><span class="lbl">Chain ID</span><div class="inp" style="margin-top:8px"><input id="cfgChainId" inputmode="numeric"></div></div>
@@ -533,7 +534,7 @@ html{ background:#000 }
   <div class="fieldrow"><span class="lbl">Explorer</span><div class="inp" style="margin-top:8px"><input id="cfgExplorer" placeholder="https://…"></div></div>
   <div class="sectlbl">Trading</div>
   <div class="fieldrow"><span class="lbl" data-i18n="settings.slip">Tolleranza di prezzo (bps)</span><div class="inp" style="margin-top:8px"><input id="cfgSlip" inputmode="numeric"></div></div>
-  <p class="mono" data-i18n="settings.note">Solo in questo browser. Program ID e Factory vuoti = demo. Devnet compila i campi Solana; poi Salva.</p>
+  <p class="mono" data-i18n="settings.note">Solo in questo browser. Program ID e Factory vuoti = demo. Devnet e Testnet compilano i campi; poi Salva.</p>
   <button class="cta" id="cfgSave" data-i18n="save">Salva</button>
 </div>
 <div class="toasts" id="toasts"></div>
@@ -629,7 +630,9 @@ const META_MAX = { name: 32, symbol: 10, uri: 200 };
 const TYPE_TOKEN_METADATA = 19;
 // Deploy pubblici: compilano le impostazioni Solana in un tocco (test: frontend/test/emit.mjs li confronta con lib.rs)
 const PRESETS = { devnet: { rpc: 'https://api.devnet.solana.com', program: '8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH', net: 'devnet',
-  treasury: 'G7EBp22JknV1CypYgiXjL37itb5DUgPUaf4q56E8ZxgZ,13hVFWngnyVLfXfWt9BWrJkQTmkDrk3EVRuvzN4SKPio,2pnMTJEN1qtSgTQRmxrK3sLD2aJQSFqnxSscynre1rTc,GaPJwGBApWFfYq4ciFAMYqZERrcjEaqxiFLi6EZFRfNt' } };
+  treasury: 'G7EBp22JknV1CypYgiXjL37itb5DUgPUaf4q56E8ZxgZ,13hVFWngnyVLfXfWt9BWrJkQTmkDrk3EVRuvzN4SKPio,2pnMTJEN1qtSgTQRmxrK3sLD2aJQSFqnxSscynre1rTc,GaPJwGBApWFfYq4ciFAMYqZERrcjEaqxiFLi6EZFRfNt' },
+  testnet: { evmRpc: 'https://rpc.testnet.chain.robinhood.com', factory: '0x3BBbAd31AB1fD816D22909ec846A6840596B222e', chainId: 46630,
+  fromBlock: 125330331, explorer: 'https://explorer.testnet.chain.robinhood.com' } };
 /* CONST-END */
 
 // EVM: ResidualPegFactory / ResidualPeg (selettori e topic calcolati con keccak256)
@@ -667,7 +670,7 @@ it: {
  'create.rt':'round-trip', 'create.be':'pareggio', 'create.vstar':'protezione', 'create.nameOnchain':'Nome (on-chain)', 'create.symbol':'Simbolo (on-chain)', 'create.uri':'URI metadati (facoltativo)',
  'create.cost':'Paghi solo il rent di mint e vault. Parametri immutabili dopo la creazione.', 'create.bad':'Nome 1–32 caratteri, simbolo 1–10, URI fino a 200', 'create.priceRange':'Prezzo tra {a} e {b}',
  'faq.title':'Come funziona Bernie', 'faq.close':'Chiudi', 'lang.title':'Lingua', 'settings.title':'Impostazioni', 'settings.treasury':'Tesoreria', 'settings.net':'Rete',
- 'settings.fromBlock':'Blocco di deploy della factory', 'settings.slip':'Tolleranza di prezzo (bps)', 'settings.note':'Solo in questo browser. Program ID e Factory vuoti = demo. Devnet compila i campi Solana; poi Salva.', 'settings.preset':'Preset', 'save':'Salva',
+ 'settings.fromBlock':'Blocco di deploy della factory', 'settings.slip':'Tolleranza di prezzo (bps)', 'settings.note':'Solo in questo browser. Program ID e Factory vuoti = demo. Devnet e Testnet compilano i campi; poi Salva.', 'settings.preset':'Preset', 'save':'Salva',
  'toast.noWallet':'Nessun wallet Solana trovato. Su iPhone apri la pagina dal browser di Phantom.', 'toast.noEvmWallet':'Nessun wallet EVM trovato nel browser.', 'toast.refused':'Connessione rifiutata: {e}',
  'toast.connectFirst':'Collega prima un wallet.', 'toast.noProgram':'Manca il Program ID nelle impostazioni.', 'toast.confirmed':'✓ {label}', 'toast.failed':'✗ {label}: {e}', 'toast.wrongChain':'Wallet su un\'altra rete.',
  'lbl.create':'Creazione token', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donazione', 'lbl.claim':'Ritiro fee', 'lbl.sweep':'Ritiro excess',
@@ -727,7 +730,7 @@ en: {
  'create.rt':'round trip', 'create.be':'break-even', 'create.vstar':'protection', 'create.nameOnchain':'Name (on-chain)', 'create.symbol':'Symbol (on-chain)', 'create.uri':'Metadata URI (optional)',
  'create.cost':'You only pay the mint and vault rent. Parameters are immutable after creation.', 'create.bad':'Name 1–32 characters, symbol 1–10, URI up to 200', 'create.priceRange':'Price between {a} and {b}',
  'faq.title':'How Bernie works', 'faq.close':'Close', 'lang.title':'Language', 'settings.title':'Settings', 'settings.treasury':'Treasury', 'settings.net':'Network',
- 'settings.fromBlock':'Factory deploy block', 'settings.slip':'Price tolerance (bps)', 'settings.note':'This browser only. Empty Program ID and Factory = demo. Devnet fills the Solana fields; then Save.', 'settings.preset':'Preset', 'save':'Save',
+ 'settings.fromBlock':'Factory deploy block', 'settings.slip':'Price tolerance (bps)', 'settings.note':'This browser only. Empty Program ID and Factory = demo. Devnet and Testnet fill the fields; then Save.', 'settings.preset':'Preset', 'save':'Save',
  'toast.noWallet':'No Solana wallet found. On iPhone open this page from Phantom\'s browser.', 'toast.noEvmWallet':'No EVM wallet found in the browser.', 'toast.refused':'Connection refused: {e}',
  'toast.connectFirst':'Connect a wallet first.', 'toast.noProgram':'Program ID missing in settings.', 'toast.confirmed':'✓ {label}', 'toast.failed':'✗ {label}: {e}', 'toast.wrongChain':'Wallet on another network.',
  'lbl.create':'Token creation', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donation', 'lbl.claim':'Fee claim', 'lbl.sweep':'Excess claim',
@@ -1485,6 +1488,7 @@ $('#btnSettings').addEventListener('click', () => {
   openSheet('#settings'); });
 $('#cfgCancel').addEventListener('click', closeSheets);
 $('#cfgPresetDevnet').addEventListener('click', () => { const d = PRESETS.devnet; $('#cfgRpc').value = d.rpc; $('#cfgProg').value = d.program; $('#cfgTreas').value = d.treasury; $('#cfgNet').value = d.net; });
+$('#cfgPresetTestnet').addEventListener('click', () => { const d = PRESETS.testnet; $('#cfgEvmRpc').value = d.evmRpc; $('#cfgFactory').value = d.factory; $('#cfgChainId').value = d.chainId; $('#cfgFromBlock').value = d.fromBlock; $('#cfgExplorer').value = d.explorer; });
 $('#cfgSave').addEventListener('click', () => {
   cfg = { rpc: $('#cfgRpc').value.trim(), program: $('#cfgProg').value.trim(), treasury: $('#cfgTreas').value.trim(), net: $('#cfgNet').value.trim() || 'devnet', priority: Number($('#cfgPrio').value) || 0,
     evmRpc: $('#cfgEvmRpc').value.trim(), factory: $('#cfgFactory').value.trim(), chainId: Number($('#cfgChainId').value) || 46630, fromBlock: Number($('#cfgFromBlock').value) || 0, explorer: $('#cfgExplorer').value.trim(),

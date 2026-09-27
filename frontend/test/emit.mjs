@@ -37,6 +37,12 @@ const api = new Function('W', 'programId', 'treasuries', 'cfg',
 // Il preset Devnet deve puntare al programma e alle tesorerie compilate in lib.rs.
 if (api.PRESETS.devnet.program !== programB58) throw new Error(`PRESETS.devnet.program ${api.PRESETS.devnet.program} ≠ declare_id ${programB58}`);
 if (api.PRESETS.devnet.treasury !== treasuryB58.join(',')) throw new Error('PRESETS.devnet.treasury diverso da TREASURIES in lib.rs');
+// I preset devono coincidere con deployments.json, il registro dei deploy pubblici.
+const deps = JSON.parse(readFileSync(join(root, 'deployments.json'), 'utf8'));
+const sd = deps['solana-devnet'], rt = deps['robinhood-testnet'], pt = api.PRESETS.testnet;
+if (sd.program !== programB58 || sd.rpc !== api.PRESETS.devnet.rpc) throw new Error('deployments.json solana-devnet diverso da lib.rs o dal preset');
+if (pt.factory !== rt.factory || pt.chainId !== rt.chain_id || pt.fromBlock !== rt.factory_block || pt.evmRpc !== rt.rpc || pt.explorer !== rt.explorer)
+  throw new Error('PRESETS.testnet diverso da deployments.json robinhood-testnet');
 
 const key = n => new W.PublicKey(new Uint8Array(32).fill(n));
 const creator = key(1), user = key(2), mint = key(3), whale = key(4);

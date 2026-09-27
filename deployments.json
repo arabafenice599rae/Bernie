@@ -1,0 +1,15 @@
+{
+  "solana-devnet": {
+    "rpc": "https://api.devnet.solana.com",
+    "program": "8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH",
+    "upgrade_authority": "VUpwi769ogYJMRnqH2xCYNAcTTqeLna3P2LQ7FbRFj8"
+  },
+  "robinhood-testnet": {
+    "chain_id": 46630,
+    "rpc": "https://rpc.testnet.chain.robinhood.com",
+    "explorer": "https://explorer.testnet.chain.robinhood.com",
+    "factory": "0x3BBbAd31AB1fD816D22909ec846A6840596B222e",
+    "factory_block": 125330331,
+    "treasury": "0xDA1cbf31Af1693d90a9f0B73d0E06c5A5e7086a7"
+  }
+}
