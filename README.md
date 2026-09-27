@@ -1,16 +1,13 @@
-# Bernie — Specifica v1.5 (candidate freeze)
+# Bernie — Specifica v1.6 (candidate freeze)
 
-## Cosa cambia rispetto alla v1.4
+## Cosa cambia rispetto alla v1.5
 
-- **Nome.** Il protocollo si chiama **Bernie** (prima Residual Peg). Il termine "peg" sparisce anche dall'interfaccia, perché suggeriva un valore stabile.
-- **Interfaccia on-chain definita e normativa.** Codifica delle istruzioni Solana, layout del vault e lettura dei metadati Token-2022. ABI EVM completa con selettori, eventi e ordine di emissione.
-- **Vincoli di design e principio di neutralità.** Sono requisiti normativi, sia per il software sia per la comunicazione.
-- **Nuovo errore 16, `MetadataTooLong`.** Limiti di nome, simbolo e URI validati on-chain.
-- **Tesoreria Solana come lista costante di N indirizzi.** Il client ne sceglie uno per operazione, per distribuire i write lock.
-- **Nuove sezioni:**
-  - frontend;
-  - contesto regolamentare aggiornato a settembre 2026;
-  - Appendice B con selettori e topic EVM.
+- **Fee del creator su Solana nel vault.** Il creator non è più un account di `mint` e `redeem`: la sua fee resta nel vault come excess. Un creator non può più bloccare mint e riscatti svuotando il proprio wallet (fee sotto il minimo rent-exempt rifiutata dal runtime).
+- **`sweep` su entrambe le chain.** Su Solana il tag 4 diventa `sweep` al posto di `close`: stessa semantica dell'EVM, chiamabile da chiunque, invia l'excess al creator senza chiudere il vault. Risolve l'asimmetria close/sweep.
+- **Evento `State` al posto di `Peg`**, su entrambe le chain, coerente con §10. Nuovo topic in Appendice B.
+- **Lettura dei metadati Token-2022** descritta correttamente: scansione del TLV fino al tipo 19.
+- **Esempio di §8 ricalcolato** con la formula delle fee v1.4.
+- **Requisito operativo:** le tesorerie Solana devono restare sempre rent-exempt.
 
 ## 1. Panoramica
 
@@ -24,7 +21,8 @@ Decisioni prese:
 - Penalità in ingresso `entry_bps`: scelta dal creator con 0 ≤ e ≤ p, immutabile, distribuita solo agli holder già presenti.
 - k ad alta precisione tramite `SCALE` (10⁹ su Solana, 10¹⁸ su EVM).
 - Absorb immediato nella stessa istruzione: a fine istruzione vale `residual < S`, oppure `S == 0`.
-- La penalità dell'ultimo uscente (S → 0) diventa excess e va al creator.
+- La penalità dell'ultimo uscente (S → 0) diventa excess e va al creator tramite `sweep`.
+- Su Solana la fee del creator resta nel vault come excess, ritirabile con `sweep`; su EVM è in pull (`claimFees`). Nessuna operazione degli utenti dipende dallo stato dell'account del creator.
 - Fee dello 0,2% al creator e dello 0,2% al protocollo, calcolate solo sul backing, in ingresso e in uscita, con un solo arrotondamento sulla fee totale.
 - Backing solo nell'asset nativo (SOL, ETH).
 - Metadati on-chain immutabili.
@@ -97,7 +95,12 @@ Storage:
 
 `S` è `totalSupply()` dell'ERC-20 di OZ; `decimals()` = 18. La tesoreria è una costante dell'implementazione.
 
-**Excess**, per differenza su entrambe le chain: `saldo − (R + Q)/SCALE − fee dovute − rent`. Non tocca mai k.
+**Excess**, per differenza:
+
+- Solana: `lamport del vault − rent − (R + Q)/SCALE`. Contiene le fee del creator accumulate, le penalità dell'ultimo uscente, i resti e i lamport inviati direttamente.
+- EVM: `saldo − (R + Q)/SCALE − totalFeesOwed`. Le fee del creator sono in `feesOwed`.
+
+L'excess non tocca mai k e va sempre al creator registrato.
 
 ## 4. Invarianti
 
@@ -155,7 +158,7 @@ Con tasso `(FEE_C + FEE_P)/10.000 < 1`, `ft` cresce al massimo di 1 per ogni uni
 
 ## 6. Operazioni
 
-Solana ha cinque istruzioni: create, mint, redeem, donate e close. EVM ha le stesse, con `sweep` al posto di `close` e in più `claimFees`. Per I6 basta l'absorb finale. La transazione è atomica: un errore annulla ogni modifica.
+Entrambe le chain hanno create, mint, redeem, donate e sweep. EVM ha in più `claimFees`. Per I6 basta l'absorb finale. La transazione è atomica: un errore annulla ogni modifica.
 
 ### create(P, p, e, metadati)
 
@@ -182,7 +185,8 @@ Q += c·SCALE − full − epen                    // solo il resto di arrotonda
 S += u ; R += full
 absorb()
 assert I1..I6
-// effetti: utente → vault c, fc → creator, fp → protocollo, mint di u all'utente
+// effetti Solana: utente → vault (c + fc), utente → tesoreria fp, mint di u all'utente
+// effetti EVM:    msg.value ≥ c + ft; feesOwed[creator] += fc; feesOwed[tesoreria] += fp; rimborso dell'eccedenza
 ```
 
 **Semantica del prezzo d'ingresso.** La sequenza è `k_old → epen → absorb → k' → full = u·k'`. L'unica penalità economica è `epen`. Il termine `u·(k' − k_old)` è backing riscattabile del nuovo entrante, necessario per mantenere I1.
@@ -203,7 +207,8 @@ S −= u ; R −= full
 if S == 0: Q = 0                             // penalità + resti → excess
 else:      Q += full − g·SCALE ; absorb()
 assert I1..I6
-// effetti: burn di u, vault → utente out, fc → creator, fp → protocollo
+// effetti Solana: burn di u come delegato; vault → utente out; vault → tesoreria fp; fc resta nel vault
+// effetti EVM:    burn di u; out all'utente; feesOwed[creator] += fc; feesOwed[tesoreria] += fp
 ```
 
 ### donate(a)
@@ -216,19 +221,13 @@ absorb()
 assert I1..I6
 ```
 
-### close (solo Solana)
+### sweep (entrambe le chain, chiamabile da chiunque)
 
 ```
-require S == 0                               // per I4 anche Q == 0 e R == 0
-// tutto il saldo del vault, rent compreso, va al creator; account chiuso
-```
-
-### sweep (solo EVM, chiamabile da chiunque)
-
-```
-excess = balance − (R + Q)/SCALE − totalFeesOwed
-require excess > 0
-// excess → creator; sicuro con qualsiasi S
+Solana: excess = lamport_vault − rent − (R + Q)/SCALE
+EVM:    excess = balance − (R + Q)/SCALE − totalFeesOwed
+require excess > 0                           // NothingToClaim
+// excess → creator registrato nel vault; k, R, Q, S invariati; il vault resta aperto
 ```
 
 ### claimFees (solo EVM)
@@ -249,12 +248,12 @@ feesOwed[caller] = 0 ; totalFeesOwed −= amt
 | 4 | `ZeroPayout` | `out == 0` dopo le fee |
 | 5 | `Slippage` | costo oltre `max_cost` o uscita sotto `min_out` |
 | 6 | `NoHolders` | `donate` con `S == 0` |
-| 7 | `NotEmpty` | `close` con `S > 0` |
+| 7 | — | riservato (era `NotEmpty`, non più usato) |
 | 8 | `PenaltyOutOfRange` | `p` fuori da `[PEN_MIN, PEN_MAX]`, oppure `e > p` |
 | 9 | `PriceOutOfRange` | `P` fuori da `[MIN_PRICE, MAX_PRICE]` |
 | 10 | `Overflow` | un'operazione checked fallisce |
 | 11 | `InvariantViolated` | un'asserzione I1–I6 fallisce: segnala un bug |
-| 12 | `NothingToClaim` | `claimFees` o `sweep` senza importo (solo EVM) |
+| 12 | `NothingToClaim` | `sweep` senza excess, oppure `claimFees` senza importo |
 | 13 | `TransferToSelf` | trasferimento ERC-20 verso il contratto stesso (solo EVM) |
 | 14 | `SupplyMismatch` | `vault.supply ≠ mint.supply` (solo Solana) |
 | 15 | `MissingDelegation` | delega al PDA assente o inferiore a `u` nel redeem (solo Solana) |
@@ -262,12 +261,13 @@ feesOwed[caller] = 0 ; totalFeesOwed −= amt
 
 Casi limite con comportamento definito:
 
-- **Ultimo uscente.** Paga la penalità come tutti. Penalità e resti diventano excess e vanno sempre al creator, chiunque sia l'ultimo holder.
+- **Ultimo uscente.** Paga la penalità come tutti. Penalità e resti diventano excess e vanno sempre al creator tramite `sweep`, chiunque sia l'ultimo holder. Il vault resta aperto: il token è riutilizzabile al prezzo raggiunto.
 - **Penalità senza altri holder.** È redistributiva solo se esistono altri holder; altrimenti diventa excess del creator.
 - **Rientro dopo lo svuotamento.** k resta al valore raggiunto (I3). Il nuovo primo entrante non cattura nulla, perché I4 ha azzerato Q.
 - **Redeem minuscoli.** Falliscono con `Dust` o `ZeroPayout`.
 - **ETH o lamport inviati direttamente.** Diventano excess; su EVM non c'è `receive()`.
 - **CPI Guard.** Il redeem su Solana usa sempre il burn come delegato, quindi funziona con o senza CPI Guard (sezione 11).
+- **Account del creator svuotato.** Non ha effetti: il creator non compare negli account di mint e redeem. Solo `sweep` scrive sul suo account, e fallisce soltanto se l'excess non basta a renderlo rent-exempt. In quel caso si attende che l'excess cresca, oppure il creator rifinanzia il proprio account.
 
 ## 8. Proprietà economiche
 
@@ -315,8 +315,10 @@ Il guadagno non cresce linearmente con A, il costo sì. Con O piccolo nessuna `e
 | Soggetto | Prima | Dopo il redeem, senza attacco | Dopo il redeem, con attacco |
 |---|---|---|---|
 | Holder O (backing) | 5.000.000 | 6.000.000 | 5.550.600 |
-| Vittima (incasso) | — | 18.924.000 | 19.098.102 |
-| Attaccante (profitto) | — | — | +253.496 |
+| Vittima (incasso) | — | 18.924.000 | 19.098.101 |
+| Attaccante (profitto) | — | — | +254.416 |
+
+Valori calcolati con la formula v1.4 (fee sul solo backing, arrotondamento unico), verificati sul modello dell'Appendice A.
 
 ## 9. Guida ai parametri
 
@@ -355,7 +357,7 @@ Requisiti normativi per programmi, interfaccia e comunicazione. Descrivono il so
 5. **Nessun bisogno di compratori.** Il riscatto avviene contro il vault, anche per l'ultimo holder. Nessuna dipendenza da mercati secondari.
 6. **Nessuna componente aleatoria.**
 7. **Custodia vincolata dal codice.** I fondi escono solo via redeem, fee ed excess.
-8. **Flussi dichiarati.** Fee fisse e indipendenti dal risultato di chi opera; penalità agli holder presenti; excess al creator.
+8. **Flussi dichiarati.** Fee fisse e indipendenti dal risultato di chi opera: 0,2% al creator (Solana: nel vault, ritirabile con `sweep`; EVM: `claimFees`) e 0,2% al protocollo. Penalità agli holder presenti. Excess al creator.
 9. **Limite di cattura dichiarato**, con la soglia v* mostrata per ogni token.
 10. **Preventivi.** Calcolati sullo stato attuale; la tolleranza di prezzo limita la differenza.
 11. **Interfaccia.** Legge dati pubblici e prepara transazioni firmate dall'utente; non custodisce fondi; non è un'offerta.
@@ -376,26 +378,26 @@ Il byte 0 dei dati è il tag dell'istruzione; gli interi sono little-endian; le 
 | Tag | Istruzione | Dati | Account (s = firmatario, w = scrivibile) |
 |---|---|---|---|
 | 0 | create | P u64, p u16, e u16, nome, simbolo, URI | creator (s,w), mint (s,w, keypair nuova), vault PDA (w), System, Token-2022 |
-| 1 | mint | u u64, max_cost u64 | utente (s,w), ATA Token-2022 (w), mint (w), vault (w), creator (w), tesoreria (w), System, Token-2022 |
-| 2 | redeem | u u64, min_out u64 | utente (s,w), ATA (w), mint (w), vault (w), creator (w), tesoreria (w), Token-2022 |
+| 1 | mint | u u64, max_cost u64 | utente (s,w), ATA Token-2022 (w), mint (w), vault (w), tesoreria (w), System, Token-2022 |
+| 2 | redeem | u u64, min_out u64 | utente (s,w), ATA (w), mint (w), vault (w), tesoreria (w), Token-2022 |
 | 3 | donate | a u64 | donatore (s,w), mint, vault (w), System |
-| 4 | close | — | creator (s,w), mint, vault (w) |
+| 4 | sweep | — | creator (w, deve coincidere con `vault.creator`), mint, vault (w) |
 
 **Composizione delle transazioni da parte del client:**
 
 - **mint:** creazione idempotente dell'ATA (programma ATA, dati `[1]`, con il program ID Token-2022) seguita da `mint`.
 - **redeem:** `ApproveChecked` Token-2022 (dati `[13, u u64, decimali u8]`: source ATA, mint, delegato = vault PDA, owner) seguita da `redeem`. Il programma verifica che la delega sia ≥ `u` ed esegue `BurnChecked` come delegato con `invoke_signed`.
-- **Budget di calcolo stimato**, da misurare: create 90k CU, mint 60k, redeem 45k, donate e close 10k.
+- **Budget di calcolo stimato**, da misurare: create 90k CU, mint 60k, redeem 45k, donate e sweep 10k.
 
-**Tesoreria.** Lista costante di N indirizzi nel programma. Il client ne sceglie uno a caso per ogni operazione, per distribuire i write lock.
+**Tesoreria.** Lista costante di N indirizzi nel programma. Il client ne sceglie uno a caso per ogni operazione, per distribuire i write lock. Requisito operativo: ogni tesoreria resta sempre rent-exempt (mai svuotata del tutto), altrimenti una fee sotto il minimo rent-exempt farebbe fallire mint e riscatti.
 
 **Lettura dello stato:**
 
 - **Vault:** `getProgramAccounts` con `dataSize = 128` e i primi due byte = `[0x52, 0x04]`.
-- **Metadati:** dal TLV del mint Token-2022, a partire dall'offset 166, tipo 19 (TokenMetadata): update authority (32 byte), mint (32 byte), poi nome, simbolo e URI come stringhe con lunghezza u32.
+- **Metadati:** dal TLV del mint Token-2022. Layout: mint base 82 byte, padding fino a 165, AccountType all'offset 165 (1 = Mint), TLV da 166. Ogni voce è tipo u16 + lunghezza u16 + valore. Si scorre fino al tipo 19 (TokenMetadata); prima di norma c'è il tipo 18 (MetadataPointer, valore da 64 byte). Il valore del tipo 19 inizia 4 byte dopo l'intestazione e contiene: update authority (32, zero = nessuna), mint (32), nome, simbolo, URI come stringhe (lunghezza u32 + byte), poi `additional_metadata`.
 - **Saldo del vault** per i preventivi: lamport − rent esente per 128 byte.
 
-**Storico.** È ricostruibile rigiocando i dati delle istruzioni riuscite dal `create`, perché `P`, `u` e `a` determinano completamente le transizioni. Il programma emette anche un log `Peg(k, S, R, Q)` per gli indexer.
+**Storico.** È ricostruibile rigiocando i dati delle istruzioni riuscite dal `create`, perché `P`, `u` e `a` determinano completamente le transizioni. Il programma emette anche un log `State(k, S, R, Q)` per gli indexer.
 
 ### Robinhood Chain (EVM)
 
@@ -426,13 +428,13 @@ function claimFees()
 function sweep()
 ```
 
-**Eventi**, emessi in quest'ordine nella stessa transazione: prima l'evento dell'operazione, poi `Peg`.
+**Eventi**, emessi in quest'ordine nella stessa transazione: prima l'evento dell'operazione, poi `State`.
 
 ```
 event Minted(address indexed who, uint256 u, uint256 paid)
 event Redeemed(address indexed who, uint256 u, uint256 out)
 event Donated(address indexed who, uint256 amount)
-event Peg(uint256 k, uint256 S, uint256 R, uint256 Q)
+event State(uint256 k, uint256 S, uint256 R, uint256 Q)
 ```
 
 Selettori e topic sono nell'Appendice B.
@@ -453,8 +455,9 @@ Selettori e topic sono nell'Appendice B.
   5. UpdateAuthority → nulla;
   6. creazione del vault PDA.
 - **Flussi di lamport:**
-  - in ingresso: trasferimenti di sistema;
-  - in uscita: modifica diretta dei lamport del vault, con controllo rent-exempt sui destinatari delle fee;
+  - in ingresso: trasferimenti di sistema; la fee del creator entra nel vault insieme al backing;
+  - in uscita: modifica diretta dei lamport del vault verso l'utente e la tesoreria;
+  - `sweep`: modifica diretta dei lamport del vault verso il creator, solo per l'excess;
   - dopo ogni CPI si confronta `vault.supply` con la supply del mint.
 
 ## 13. Mappa EVM
@@ -514,7 +517,11 @@ In live mostra solo i token del protocollo.
 
 Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona con la pagina ospitata in proprio. Il live non è ancora testato, perché i programmi non esistono.
 
-**Da allineare:** aggiungere il codice 16 `MetadataTooLong` alla mappa degli errori del frontend.
+**Da allineare:**
+- codice 16 `MetadataTooLong` nella mappa degli errori;
+- topic `State` al posto di `Peg`;
+- creator rimosso dagli account di `mint` e `redeem`;
+- tag 4 = `sweep` con "Ritira excess" disponibile su Solana in qualsiasi momento.
 
 ## 15. Librerie e strumenti
 
@@ -600,8 +607,7 @@ La cattura è la stessa struttura della JIT liquidity in Uniswap v3: chi esegue 
 
 **Da decidere:**
 
-- asimmetria close/sweep (proposta: sweep senza chiusura anche su Solana);
-- N e indirizzi delle tesorerie, da puntare a un multisig.
+- N e indirizzi delle tesorerie, da puntare a un multisig e da mantenere sempre rent-exempt.
 
 **Decisi:**
 
@@ -613,9 +619,11 @@ La cattura è la stessa struttura della JIT liquidity in Uniswap v3: chi esegue 
 - redeem via burn come delegato;
 - interfaccia on-chain della sezione 11;
 - vincoli di design della sezione 10;
-- nome Bernie.
+- nome Bernie;
+- fee del creator su Solana nel vault, ritirabile con `sweep`; `sweep` su entrambe le chain al posto di `close`;
+- evento `State`.
 
-**Stato: v1.5 candidate freeze.** La matematica è chiusa e l'interfaccia è definita. Gate rimasti:
+**Stato: v1.6 candidate freeze.** La matematica è chiusa e l'interfaccia è definita. Gate rimasti:
 
 1. Scrivere i due programmi sull'interfaccia.
 2. Portare i vettori in Mollusk e Foundry.
@@ -733,7 +741,7 @@ class Ledger:
 
 | Evento | Topic 0 |
 |---|---|
-| `Peg(uint256,uint256,uint256,uint256)` | `0xcdd6d3d734a1fa212e9a18dfe6b0953a5653f62bcc9f4d686f5ec64c8aa286e9` |
+| `State(uint256,uint256,uint256,uint256)` | `0xb2a993418bef66b66f2693b2becec23c28981a2836aca6ca3aa33fa3fd11a2f7` |
 | `Minted(address,uint256,uint256)` | `0x25b428dfde728ccfaddad7e29e4ac23c24ed7fd1a6e3e3f91894a9a073f5dfff` |
 | `Redeemed(address,uint256,uint256)` | `0xf3a670cd3af7d64b488926880889d08a8585a138ff455227af6737339a1ec262` |
 | `Donated(address,uint256)` | `0x2a01595cddf097c90216094025db714da3f4e5bd8877b56ba86a24ecead8e543` |
