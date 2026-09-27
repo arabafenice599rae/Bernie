@@ -21,6 +21,7 @@ fn error_codes_match_section_7() {
         (SupplyMismatch, 14),
         (MissingDelegation, 15),
         (MetadataTooLong, 16),
+        (NotOwner, 17),
     ];
     for (e, code) in table {
         assert_eq!(e.code(), code, "{}", e.name());

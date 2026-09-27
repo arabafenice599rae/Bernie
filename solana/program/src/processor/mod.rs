@@ -9,7 +9,8 @@ pub mod redeem;
 pub mod sweep;
 
 use crate::{SYSTEM_PROGRAM_ID, TREASURIES};
-use pinocchio::{error::ProgramError, AccountView, ProgramResult};
+use pinocchio::{cpi::Signer, error::ProgramError, AccountView, Address, ProgramResult};
+use pinocchio_system::instructions::{Allocate, Assign, CreateAccount, Transfer};
 
 pub fn signer_writable(acc: &AccountView) -> ProgramResult {
     if !acc.is_signer() {
@@ -57,4 +58,48 @@ pub fn move_lamports(from: &AccountView, to: &AccountView, amount: u64) -> Progr
     from.set_lamports(f);
     to.set_lamports(t);
     Ok(())
+}
+
+/// Crea `target` con `space` byte, owner `owner` e almeno `lamports`, anche se qualcuno
+/// vi ha già inviato lamport: `CreateAccount` fallirebbe e chiunque veda la transazione
+/// potrebbe bloccare `create` (griefing). In quel caso si versa solo la differenza,
+/// poi `Allocate` e `Assign`. `signers` firma per `target` quando è un PDA.
+pub fn create_account(
+    payer: &AccountView,
+    target: &AccountView,
+    lamports: u64,
+    space: u64,
+    owner: &Address,
+    signers: &[Signer],
+) -> ProgramResult {
+    let current = target.lamports();
+    if current == 0 {
+        return CreateAccount {
+            from: payer,
+            to: target,
+            lamports,
+            space,
+            owner,
+        }
+        .invoke_signed(signers);
+    }
+    let missing = lamports.saturating_sub(current);
+    if missing > 0 {
+        Transfer {
+            from: payer,
+            to: target,
+            lamports: missing,
+        }
+        .invoke()?;
+    }
+    Allocate {
+        account: target,
+        space,
+    }
+    .invoke_signed(signers)?;
+    Assign {
+        account: target,
+        owner,
+    }
+    .invoke_signed(signers)
 }

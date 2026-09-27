@@ -8,6 +8,8 @@
 - **Lettura dei metadati Token-2022** descritta correttamente: scansione del TLV fino al tipo 19.
 - **Esempio di §8 ricalcolato** con la formula delle fee v1.4.
 - **Requisito operativo:** le tesorerie Solana devono restare sempre rent-exempt.
+- **Redeem solo dal proprio token account.** Nuovo errore 17, `NotOwner`: senza questo controllo chiunque potrebbe riscattare, e incassare, i token di un utente che ha lasciato una delega aperta al vault.
+- **create resistente al pre-finanziamento** degli indirizzi di mint e vault (§12).
 - **P6c e P6d con ε espliciti.** La cattura include la quota dell'attaccante del residuo preesistente, q = ⌊A·(O+V)/((O+A)·SCALE)⌋: ε_c = q + 2 per P6c, ε_d = q + 1 per P6d (prima ε = 1, smentito dai test con supply reali). P6d dichiarata per k ≥ `MIN_PRICE`.
 - **§9 riproducibile.** Crescita di k da formula chiusa invece che da simulazione; pareggio corretto in +3,88%.
 
@@ -261,7 +263,8 @@ feesOwed[caller] = 0 ; totalFeesOwed −= amt
 | 13 | `TransferToSelf` | trasferimento ERC-20 verso il contratto stesso (solo EVM) |
 | 14 | `SupplyMismatch` | `vault.supply ≠ mint.supply` (solo Solana) |
 | 15 | `MissingDelegation` | delega al PDA assente o inferiore a `u` nel redeem (solo Solana) |
-| 16 | `MetadataTooLong` | nome, simbolo o URI fuori dai limiti (nuovo) |
+| 16 | `MetadataTooLong` | nome, simbolo o URI fuori dai limiti |
+| 17 | `NotOwner` | nel redeem il token account non appartiene al firmatario (solo Solana, nuovo) |
 
 Casi limite con comportamento definito:
 
@@ -395,7 +398,7 @@ Il byte 0 dei dati è il tag dell'istruzione; gli interi sono little-endian; le 
 **Composizione delle transazioni da parte del client:**
 
 - **mint:** creazione idempotente dell'ATA (programma ATA, dati `[1]`, con il program ID Token-2022) seguita da `mint`.
-- **redeem:** `ApproveChecked` Token-2022 (dati `[13, u u64, decimali u8]`: source ATA, mint, delegato = vault PDA, owner) seguita da `redeem`. Il programma verifica che la delega sia ≥ `u` ed esegue `BurnChecked` come delegato con `invoke_signed`.
+- **redeem:** `ApproveChecked` Token-2022 (dati `[13, u u64, decimali u8]`: source ATA, mint, delegato = vault PDA, owner) seguita da `redeem`. Il programma verifica, nell'ordine, che il token account sia del mint, che **appartenga all'utente firmatario** (altrimenti `NotOwner`, 17) e che la delega al vault sia ≥ `u` (altrimenti `MissingDelegation`, 15), poi esegue `BurnChecked` come delegato con `invoke_signed`. Il controllo di proprietà è normativo: la sola delega non basta, perché un'altra persona potrebbe altrimenti riscattare dal conto di chi ha lasciato una delega aperta.
 - **Budget di calcolo misurato** con Mollusk (Agave 4.2.2), caso peggiore sui vettori: create 21k CU (metadati alla lunghezza massima), mint 19k, redeem 18k più 1,4k per `ApproveChecked`, donate 14k, sweep 7k. Le stime precedenti erano create 90k, mint 60k, redeem 45k, donate e sweep 10k: donate le supera.
 
 **Tesoreria.** Lista costante di N indirizzi nel programma. Il client ne sceglie uno a caso per ogni operazione, per distribuire i write lock. Requisito operativo: ogni tesoreria resta sempre rent-exempt (mai svuotata del tutto), altrimenti una fee sotto il minimo rent-exempt farebbe fallire mint e riscatti.
@@ -455,14 +458,16 @@ Selettori e topic sono nell'Appendice B.
   - `state.rs`: funzioni pure generiche su `const SCALE`;
   - `processor/*.rs`: uno per istruzione;
   - `token.rs`: CPI Token-2022;
-  - `error.rs`: codici 1–16.
+  - `error.rs`: codici 1–17 (7 riservato).
 - **Sequenza di create:**
-  1. account mint con spazio e rent per la dimensione finale;
+  1. account mint con spazio per MetadataPointer e rent per la dimensione finale;
   2. InitializeMetadataPointer (metadata address = mint, authority nulla);
   3. InitializeMint2 (9 decimali, authority = PDA, freeze nulla);
   4. TokenMetadata Initialize firmata dal PDA;
   5. UpdateAuthority → nulla;
   6. creazione del vault PDA.
+
+  **Pre-finanziamento.** Chi vede la transazione può inviare lamport agli indirizzi del mint o del vault prima che arrivi, e `CreateAccount` fallirebbe. Per entrambi gli account: se l'indirizzo ha già lamport, si versa solo la differenza fino al rent-exempt, poi `Allocate` e `Assign` (firmati dal PDA per il vault). I lamport in più sul vault diventano excess del creator.
 - **Flussi di lamport:**
   - in ingresso: trasferimenti di sistema; la fee del creator entra nel vault insieme al backing;
   - in uscita: modifica diretta dei lamport del vault verso l'utente e la tesoreria;

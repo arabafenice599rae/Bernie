@@ -37,8 +37,11 @@ pub fn process(program_id: &Address, accounts: &mut [AccountView], data: &[u8]) 
     // Il token account deve essere dell'utente firmatario: la delega al vault non
     // basta, altrimenti chiunque potrebbe riscattare dai conti di altri che l'hanno concessa.
     let acct = token::token_account(ata)?;
-    if &acct.mint != mint.address() || &acct.owner != user.address() {
+    if &acct.mint != mint.address() {
         return Err(ProgramError::InvalidAccountData);
+    }
+    if &acct.owner != user.address() {
+        return Err(err(BernieError::NotOwner));
     }
     if acct.delegate.as_ref() != Some(vault_acc.address()) || acct.delegated_amount < u {
         return Err(err(BernieError::MissingDelegation));

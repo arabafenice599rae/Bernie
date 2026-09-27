@@ -19,6 +19,8 @@ pub enum BernieError {
     SupplyMismatch = 14,
     MissingDelegation = 15,
     MetadataTooLong = 16,
+    /// Il token account del redeem non appartiene al firmatario (v1.6).
+    NotOwner = 17,
 }
 
 impl BernieError {
@@ -44,6 +46,7 @@ impl BernieError {
             Self::SupplyMismatch => "SupplyMismatch",
             Self::MissingDelegation => "MissingDelegation",
             Self::MetadataTooLong => "MetadataTooLong",
+            Self::NotOwner => "NotOwner",
         }
     }
 }

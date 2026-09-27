@@ -2,7 +2,7 @@
 //!
 //! Account: creator (s,w), mint (s,w, keypair nuova), vault PDA (w), System, Token-2022.
 
-use super::{signer_writable, system_program, writable};
+use super::{create_account, signer_writable, system_program, writable};
 use crate::{err, token, vault, Reader, TOKEN_2022_ID};
 use bernie_state::{validate_metadata, validate_params, Vault};
 use pinocchio::{
@@ -11,7 +11,6 @@ use pinocchio::{
     sysvars::{rent::Rent, Sysvar},
     AccountView, Address, ProgramResult,
 };
-use pinocchio_system::instructions::CreateAccount;
 use pinocchio_token::instructions::initialize_mint2::InitializeMint2;
 use pinocchio_token_2022::{instructions::metadata_pointer, Token2022Program};
 
@@ -54,14 +53,14 @@ pub fn process(program_id: &Address, accounts: &mut [AccountView], data: &[u8]) 
     let rent = Rent::get()?;
     let final_len =
         token::MINT_WITH_POINTER_LEN + token::metadata_tlv_len(name.len(), symbol.len(), uri.len());
-    CreateAccount {
-        from: creator,
-        to: mint,
-        lamports: rent.try_minimum_balance(final_len)?,
-        space: token::MINT_WITH_POINTER_LEN as u64,
-        owner: &TOKEN_2022_ID,
-    }
-    .invoke()?;
+    create_account(
+        creator,
+        mint,
+        rent.try_minimum_balance(final_len)?,
+        token::MINT_WITH_POINTER_LEN as u64,
+        &TOKEN_2022_ID,
+        &[],
+    )?;
 
     // 2. MetadataPointer verso il mint stesso, authority nulla.
     metadata_pointer::Initialize {
@@ -89,14 +88,14 @@ pub fn process(program_id: &Address, accounts: &mut [AccountView], data: &[u8]) 
     token::revoke_metadata_authority(mint, vault_acc, token_program, Signer::from(&seeds))?;
 
     // 6. Vault PDA.
-    CreateAccount {
-        from: creator,
-        to: vault_acc,
-        lamports: rent.try_minimum_balance(vault::LEN)?,
-        space: vault::LEN as u64,
-        owner: program_id,
-    }
-    .invoke_signed(&[Signer::from(&seeds)])?;
+    create_account(
+        creator,
+        vault_acc,
+        rent.try_minimum_balance(vault::LEN)?,
+        vault::LEN as u64,
+        program_id,
+        &[Signer::from(&seeds)],
+    )?;
 
     vault::init(vault_acc, bump, creator.address(), mint.address(), &state)?;
     vault::log_state(&state);

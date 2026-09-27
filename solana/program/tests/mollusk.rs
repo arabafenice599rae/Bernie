@@ -83,6 +83,54 @@ fn create_mint_metadata_and_vault() {
     );
 }
 
+/// Anti-griefing: lamport inviati in anticipo agli indirizzi di mint e vault non
+/// bloccano create; l'eccedenza sul vault diventa excess del creator.
+#[test]
+fn create_with_prefunded_mint_and_vault() {
+    for (pre_mint, pre_vault) in [(1, 1), (1, 0), (0, 1), (10 * P, 10 * P)] {
+        let mut env = Env::new();
+        env.new_mint();
+        if pre_mint > 0 {
+            env.fund(&env.mint, pre_mint);
+        }
+        if pre_vault > 0 {
+            env.fund(&env.vault, pre_vault);
+        }
+        let r = env.create_current(
+            P,
+            200,
+            100,
+            b"Bernie Test",
+            b"BRN",
+            b"https://example.invalid/b.json",
+        );
+        assert!(r.is_ok(), "prefund {pre_mint}/{pre_vault}: {:?}", r.raw);
+        let v = env.account(&env.vault);
+        assert_eq!((v.owner, v.data.len()), (PROGRAM_ID, VAULT_LEN));
+        assert_eq!(v.lamports, rent(VAULT_LEN).max(pre_vault));
+        assert_eq!(env.account(&env.mint).owner, TOKEN_2022);
+        assert!(
+            tlv(&env.account(&env.mint).data, 19).is_some(),
+            "metadati presenti"
+        );
+
+        // Il token funziona e l'eccedenza del vault va al creator con sweep.
+        let user = Pubkey::new_unique();
+        env.fund(&user, 100 * P);
+        let ata = env.token_account(&user, None);
+        assert!(env
+            .run(&[env.mint_ix(&user, &ata, 0, 1_000_000_000, u64::MAX)])
+            .is_ok());
+        let c0 = env.lamports(&env.creator);
+        assert!(env.run(&[env.sweep_ix(&env.creator)]).is_ok());
+        let fee_c = 1_000_000_000 * 20 / 10_000;
+        assert_eq!(
+            env.lamports(&env.creator) - c0,
+            fee_c + pre_vault.saturating_sub(rent(VAULT_LEN))
+        );
+    }
+}
+
 #[test]
 fn create_rejects_bad_parameters() {
     let mut env = Env::new();
@@ -245,7 +293,7 @@ fn redeem_needs_own_account_and_delegation() {
         .run(&[env.approve_ix(&alice, &ata_a, 1_000_000_000)])
         .is_ok());
     let r = env.run(&[env.redeem_ix(&eve, &ata_a, 0, 1_000_000_000, 0)]);
-    assert_eq!(r.raw, Err(InstructionError::InvalidAccountData));
+    assert_eq!(custom(&r), Some(17), "NotOwner");
     assert_eq!(env.token_amount(&ata_a), 1_000_000_000);
 }
 

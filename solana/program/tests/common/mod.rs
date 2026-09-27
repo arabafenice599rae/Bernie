@@ -130,8 +130,26 @@ impl Env {
         symbol: &[u8],
         uri: &[u8],
     ) -> Outcome {
+        self.new_mint();
+        self.create_current(price, p, e, name, symbol, uri)
+    }
+
+    /// Sceglie un mint nuovo e il suo vault PDA, senza inviare create.
+    pub fn new_mint(&mut self) {
         self.mint = Pubkey::new_unique();
         self.vault = Pubkey::find_program_address(&[b"vault", self.mint.as_ref()], &PROGRAM_ID).0;
+    }
+
+    /// create sul mint già scelto (per i test che preparano gli indirizzi).
+    pub fn create_current(
+        &mut self,
+        price: u64,
+        p: u16,
+        e: u16,
+        name: &[u8],
+        symbol: &[u8],
+        uri: &[u8],
+    ) -> Outcome {
         let mut data = vec![0u8];
         data.extend_from_slice(&price.to_le_bytes());
         data.extend_from_slice(&p.to_le_bytes());
