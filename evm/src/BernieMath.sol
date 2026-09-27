@@ -63,8 +63,12 @@ library BernieMath {
 
     /// I1, I3, I4, I5, I6. I2 dipende dal saldo ed è verificata dal token.
     function check(State memory s, uint256 kPrev) internal pure {
+        checkAt(s, kPrev, SCALE);
+    }
+
+    function checkAt(State memory s, uint256 kPrev, uint256 scale) internal pure {
         if (
-            s.R != s.S * s.k || s.k < kPrev || (s.S == 0 && s.Q != 0) || (s.R + s.Q) % SCALE != 0
+            s.R != s.S * s.k || s.k < kPrev || (s.S == 0 && s.Q != 0) || (s.R + s.Q) % scale != 0
                 || (s.S != 0 && s.Q >= s.S)
         ) revert InvariantViolated();
     }
@@ -75,23 +79,40 @@ library BernieMath {
         pure
         returns (State memory s, uint256 c, Fees memory f)
     {
+        return mintAt(s0, e, u, SCALE);
+    }
+
+    /// Come mint, con SCALE come parametro: gli harness Halmos usano SCALE = 10 come Kani.
+    function mintAt(State memory s0, uint256 e, uint256 u, uint256 scale)
+        internal
+        pure
+        returns (State memory s, uint256 c, Fees memory f)
+    {
         if (u == 0) revert ZeroAmount();
         s = State(s0.k, s0.R, s0.Q, s0.S);
         uint256 epen = s.S == 0 ? 0 : cdiv(u * s.k * e, BPS);
         s.Q += epen;
         absorb(s); // solo gli holder esistenti
         uint256 full = u * s.k;
-        c = cdiv(full + epen, SCALE);
-        f = fees(cdiv(full, SCALE));
-        s.Q += c * SCALE - full - epen;
+        c = cdiv(full + epen, scale);
+        f = fees(cdiv(full, scale));
+        s.Q += c * scale - full - epen;
         s.S += u;
         s.R += full;
         absorb(s);
-        check(s, s0.k);
+        checkAt(s, s0.k, scale);
     }
 
     /// redeem(u, minOut): ritorna il nuovo stato, il lordo g, l'uscita out e le fee su g.
     function redeem(State memory s0, uint256 p, uint256 u, uint256 minOut)
+        internal
+        pure
+        returns (State memory s, uint256 g, uint256 out, Fees memory f)
+    {
+        return redeemAt(s0, p, u, minOut, SCALE);
+    }
+
+    function redeemAt(State memory s0, uint256 p, uint256 u, uint256 minOut, uint256 scale)
         internal
         pure
         returns (State memory s, uint256 g, uint256 out, Fees memory f)
@@ -102,7 +123,7 @@ library BernieMath {
         uint256 full = u * s.k;
         uint256 pen = cdiv(full * p, BPS);
         if (full <= pen) revert Dust();
-        g = (full - pen) / SCALE;
+        g = (full - pen) / scale;
         f = fees(g);
         out = g - f.total;
         if (out == 0) revert ZeroPayout();
@@ -112,18 +133,22 @@ library BernieMath {
         if (s.S == 0) {
             s.Q = 0; // penalità e resti diventano excess
         } else {
-            s.Q += full - g * SCALE;
+            s.Q += full - g * scale;
             absorb(s);
         }
-        check(s, s0.k);
+        checkAt(s, s0.k, scale);
     }
 
     function donate(State memory s0, uint256 a) internal pure returns (State memory s) {
+        return donateAt(s0, a, SCALE);
+    }
+
+    function donateAt(State memory s0, uint256 a, uint256 scale) internal pure returns (State memory s) {
         if (a == 0) revert ZeroAmount();
         if (s0.S == 0) revert NoHolders();
-        s = State(s0.k, s0.R, s0.Q + a * SCALE, s0.S);
+        s = State(s0.k, s0.R, s0.Q + a * scale, s0.S);
         absorb(s);
-        check(s, s0.k);
+        checkAt(s, s0.k, scale);
     }
 
     /// Parametri di create (§6, §20).

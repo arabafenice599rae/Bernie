@@ -536,7 +536,7 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 
 **Allineato alla v1.6:** topic `State`, errori 16 `MetadataTooLong` e 17 `NotOwner`, creator fuori da `mint` e `redeem`, tag 4 = `sweep` con "Ritira excess" su Solana in qualsiasi momento.
 
-**Nel repository:** `frontend/index.html`. I costruttori delle istruzioni (`ixCreate`, `ixAta`, `ixMint`, `ixApprove`, `ixRedeem`, `ixDonate`, `ixSweep`, `withBudget`) sono estratti dalla pagina e le transazioni risultanti eseguite su Mollusk contro il programma (`solana/program/tests/frontend.rs`): ordine degli account, dati, vault PDA, mappa degli errori e limiti di CU sono verificati, non più controllati a vista.
+**Nel repository:** `frontend/index.html`, fonte unica: l'artifact si ripubblica da quel file (`frontend/README.md`). I costruttori delle istruzioni (`ixCreate`, `ixAta`, `ixMint`, `ixApprove`, `ixRedeem`, `ixDonate`, `ixSweep`, `withBudget`) sono estratti dalla pagina e le transazioni risultanti eseguite su Mollusk contro il programma (`solana/program/tests/frontend.rs`): ordine degli account, dati, vault PDA, mappa degli errori e limiti di CU sono verificati, non più controllati a vista.
 
 **Budget di calcolo nel client.** `withBudget` somma i limiti delle istruzioni del programma, 20.000 CU per ogni creazione di ATA (circa 17k misurate) e 8.000 di margine. Senza la quota ATA il primo mint di un utente in un pool grande (35.552 CU misurate) superava il limite di 34.000 e falliva.
 
@@ -587,7 +587,7 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 - `ft(base+1) − ft(base) ∈ {0, 1}` e `fc + fp == ft`;
 - P5.
 
-**Portata di Kani.** È bounded model checking, non una prova generale. Kani dimostra I1–I6, la conservazione di `R + Q` e la canonicità di absorb, mint, redeem e donate con `SCALE = 10` su input fino a 8 bit: k ≤ 255; S, Q e u ≤ 31. La monotonia di `fees` e `fc + fp == ft` sono dimostrate su `base` fino a 32 bit; su tutto `u64` le coprono i test esaustivi e casuali. La corrispondenza con le scale reali è coperta dai vettori differenziali.
+**Portata di Kani e Halmos.** Entrambi fanno bounded model checking, non una prova generale. Halmos (`evm/test/BernieMath.halmos.t.sol`) usa gli stessi harness e lo stesso dominio di Kani su `BernieMath`, con la scala come parametro; gli harness chiamano le operazioni in try/catch e falliscono se il revert è `InvariantViolated`. Differenza dagli harness Kani: in mint e redeem le penalità sono fisse (p = 200, e = 100), perché con p ed e simbolici i prodotti a 256 bit non chiudono in 40 minuti; tutte le combinazioni di p ed e restano coperte da Kani e dai vettori. Kani dimostra I1–I6, la conservazione di `R + Q` e la canonicità di absorb, mint, redeem e donate con `SCALE = 10` su input fino a 8 bit: k ≤ 255; S, Q e u ≤ 31. La monotonia di `fees` e `fc + fp == ft` sono dimostrate su `base` fino a 32 bit; su tutto `u64` le coprono i test esaustivi e casuali. La corrispondenza con le scale reali è coperta dai vettori differenziali.
 
 **Prima del deploy:**
 

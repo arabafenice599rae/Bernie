@@ -154,3 +154,31 @@ jobs:
       - run: forge test -vv
       - name: Selettori secondo forge
         run: forge inspect IBernie methodIdentifiers && forge inspect IBernieFactory methodIdentifiers
+
+  halmos:
+    name: Halmos ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [check_absorb, check_mint, check_redeem, check_donate, check_fees]
+    defaults:
+      run:
+        working-directory: evm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dipendenze (forge-std da GitHub via HTTPS)
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          npm ci
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install halmos==0.3.3
+      - name: Halmos su BernieMath
+        run: halmos --contract BernieMathHalmos --function ${{ matrix.check }} --solver-timeout-assertion 0
