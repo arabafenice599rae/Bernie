@@ -12,7 +12,7 @@ pub mod vault;
 use bernie_state::BernieError;
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
-pinocchio::address::declare_id!("GJLMDDuCe7LxSbvRnHukAonSwmQDRVd2wofRjrzUuZpP");
+pinocchio::address::declare_id!("8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH");
 
 /// Tesorerie del protocollo (§11): lista costante di N indirizzi; il client ne sceglie
 /// una a caso per operazione. SEGNAPOSTO deterministici, da sostituire prima del deploy
