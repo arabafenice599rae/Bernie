@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      fuzz:
+        description: "Moltiplicatore dei casi Python (BERNIE_FUZZ)"
+        default: "10"
+  schedule:
+    - cron: "17 3 * * *" # fuzz lungo notturno
+
+permissions:
+  contents: read
+
+env:
+  SOLC_VERSION: "0.8.30+commit.73712a01"
+
+jobs:
+  model:
+    name: Modello, proprietà, vettori
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Test del modello (fuzz, P1–P7, §8, §9, sync con l'Appendice A)
+        env:
+          BERNIE_FUZZ: ${{ github.event_name == 'schedule' && '20' || inputs.fuzz || '1' }}
+          BERNIE_SEED: ${{ github.event_name == 'schedule' && github.run_id || '1' }}
+        run: python -m unittest discover -s tests -v
+      - name: Vettori aggiornati
+        run: python tools/gen_vectors.py --check
+      - name: Keccak di riferimento
+        run: python tools/keccak.py
+
+  abi:
+    name: Appendice B contro keccak e solc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installa solc
+        run: |
+          curl -sSfL -o solc "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v${SOLC_VERSION}"
+          chmod +x solc
+          ./solc --version
+      - name: Verifica selettori e topic
+        run: SOLC=./solc python tools/abi_check.py
+
+  rust:
+    name: state.rs (test, vettori, esaustivo)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: solana
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: solana
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --release
+
+  kani:
+    name: Kani (harness di §17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: model-checking/kani-github-action@v1
+        with:
+          working-directory: solana/state
+
+  evm:
+    name: Interfaccia EVM (Foundry)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge build
+      - name: Selettori secondo forge
+        run: forge inspect IBernie methodIdentifiers && forge inspect IBernieFactory methodIdentifiers
