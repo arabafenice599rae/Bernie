@@ -9,7 +9,9 @@ interface IBernieFactory {
 
     function count() external view returns (uint256);
     function implementation() external view returns (address);
+    function treasury() external view returns (address);
     function tokens(uint256 i) external view returns (address);
+    function claimAll(address account, address[] calldata list) external;
     function create(
         uint256 price,
         uint16 penaltyBps,
@@ -50,5 +52,6 @@ interface IBernie {
     function redeem(uint256 u, uint256 minOut) external;
     function donate() external payable;
     function claimFees() external;
+    function claimFeesFor(address account) external;
     function sweep() external;
 }

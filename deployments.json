@@ -8,8 +8,8 @@
     "chain_id": 46630,
     "rpc": "https://rpc.testnet.chain.robinhood.com",
     "explorer": "https://explorer.testnet.chain.robinhood.com",
-    "factory": "0x242c943D75dA2d874e76d9b16A75B165aaD845e0",
-    "factory_block": 125333163,
+    "factory": "0x39e13d9260cF9CFD03a7065B188697A71a2DF305",
+    "factory_block": 125366631,
     "treasury": "0xC72B096A1b863e2fAbE6340a58B3C386093d778c"
   }
 }

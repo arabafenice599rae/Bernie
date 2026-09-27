@@ -110,11 +110,13 @@ contract Bernie is ERC20, ReentrancyGuardTransient {
     }
 
     function claimFees() external nonReentrant {
-        uint256 amt = feesOwed[msg.sender];
-        if (amt == 0) revert NothingToClaim();
-        feesOwed[msg.sender] = 0;
-        totalFeesOwed -= amt;
-        Address.sendValue(payable(msg.sender), amt);
+        _claim(msg.sender);
+    }
+
+    /// Chiamabile da chiunque: paga sempre e solo `account`, mai il chiamante. Permette alla
+    /// factory di ritirare le fee di un account su più token in una transazione (claimAll).
+    function claimFeesFor(address account) external nonReentrant {
+        _claim(account);
     }
 
     /// Chiamabile da chiunque: l'excess va sempre al creator registrato.
@@ -125,6 +127,14 @@ contract Bernie is ERC20, ReentrancyGuardTransient {
     }
 
     // ── interni ──
+
+    function _claim(address account) internal {
+        uint256 amt = feesOwed[account];
+        if (amt == 0) revert NothingToClaim();
+        feesOwed[account] = 0;
+        totalFeesOwed -= amt;
+        Address.sendValue(payable(account), amt);
+    }
 
     function _state(uint256 kInit) internal view returns (BernieMath.State memory) {
         return BernieMath.State(kInit + kGrowth, reserve, residual, totalSupply());

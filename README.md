@@ -162,7 +162,7 @@ Con tasso `(FEE_C + FEE_P)/10.000 < 1`, `ft` cresce al massimo di 1 per ogni uni
 
 ## 6. Operazioni
 
-Entrambe le chain hanno create, mint, redeem, donate e sweep. EVM ha in più `claimFees`. Per I6 basta l'absorb finale. La transazione è atomica: un errore annulla ogni modifica.
+Entrambe le chain hanno create, mint, redeem, donate e sweep. EVM ha in più `claimFees`, `claimFeesFor` e, nella factory, `claimAll`. Per I6 basta l'absorb finale. La transazione è atomica: un errore annulla ogni modifica.
 
 ### create(P, p, e, metadati)
 
@@ -236,13 +236,22 @@ require excess > 0                           // NothingToClaim
 // excess → creator registrato nel vault; k, R, Q, S invariati; il vault resta aperto
 ```
 
-### claimFees (solo EVM)
+### claimFees, claimFeesFor, claimAll (solo EVM)
 
 ```
-amt = feesOwed[caller] ; require amt > 0
-feesOwed[caller] = 0 ; totalFeesOwed −= amt
-// sendValue(caller, amt)
+claimFees()             = claimFeesFor(caller)
+claimFeesFor(account):  amt = feesOwed[account] ; require amt > 0
+                        feesOwed[account] = 0 ; totalFeesOwed −= amt
+                        // sendValue(account, amt)
 ```
+
+`claimFeesFor` è chiamabile da chiunque ma paga sempre e solo `account`: chi la chiama non può
+dirottare le fee, può solo anticiparne il pagamento al titolare. La factory espone
+`claimAll(account, tokens[])`, che chiama `claimFeesFor(account)` su ogni token dell'elenco con
+fee non nulle, in una sola transazione; fallisce con `NothingToClaim` se nessuno ne ha. Serve
+alla tesoreria (e a un creator con più token) per ritirare tutto con una firma. Su Solana non
+esiste: la fee del protocollo arriva alla tesoreria a ogni operazione, quella del creator si
+ritira con `sweep`.
 
 ## 7. Casi limite ed errori
 
@@ -259,7 +268,7 @@ feesOwed[caller] = 0 ; totalFeesOwed −= amt
 | 9 | `PriceOutOfRange` | `P` fuori da `[MIN_PRICE, MAX_PRICE]` |
 | 10 | `Overflow` | un'operazione checked fallisce |
 | 11 | `InvariantViolated` | un'asserzione I1–I6 fallisce: segnala un bug |
-| 12 | `NothingToClaim` | `sweep` senza excess, oppure `claimFees` senza importo |
+| 12 | `NothingToClaim` | `sweep` senza excess, `claimFees`/`claimFeesFor` senza importo, `claimAll` senza token con fee |
 | 13 | `TransferToSelf` | trasferimento ERC-20 verso il contratto stesso (solo EVM) |
 | 14 | `SupplyMismatch` | `vault.supply ≠ mint.supply` (solo Solana) |
 | 15 | `MissingDelegation` | delega al PDA assente o inferiore a `u` nel redeem (solo Solana) |
@@ -418,8 +427,10 @@ Il byte 0 dei dati è il tag dell'istruzione; gli interi sono little-endian; le 
 ```
 function count() view returns (uint256)
 function implementation() view returns (address)
+function treasury() view returns (address)
 function tokens(uint256) view returns (address)
 function create(uint256 price, uint16 penaltyBps, uint16 entryBps, string name, string symbol, bytes32 salt) returns (address)
+function claimAll(address account, address[] tokens)   // claimFeesFor(account) su ogni token con fee
 event Created(address indexed token, address indexed creator)
 ```
 
@@ -438,6 +449,7 @@ function mint(uint256 u) payable                 // msg.value ≥ costo, ecceden
 function redeem(uint256 u, uint256 minOut)
 function donate() payable
 function claimFees()
+function claimFeesFor(address account)           // chiunque può chiamarla; paga solo account
 function sweep()
 ```
 
@@ -770,6 +782,8 @@ class Ledger:
 | `redeem(uint256,uint256)` | `0x7cbc2373` |
 | `donate()` | `0xed88c68e` |
 | `claimFees()` | `0xd294f093` |
+| `claimFeesFor(address)` | `0x74522292` |
+| `claimAll(address,address[])` | `0x13e7e058` |
 | `sweep()` | `0x35faa416` |
 | `treasury()` | `0x61d027b3` |
 | `implementation()` | `0x5c60da1b` |

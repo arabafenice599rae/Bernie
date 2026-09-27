@@ -3,18 +3,33 @@ pragma solidity 0.8.30;
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Bernie} from "./Bernie.sol";
-import {BernieMath} from "./BernieMath.sol";
+import {BernieMath, NothingToClaim} from "./BernieMath.sol";
 
 /// Factory senza owner (§11, §13): cloni deterministici con salt keccak256(msg.sender, salt),
-/// enumerazione con count() e tokens(i).
+/// enumerazione con count() e tokens(i), ritiro delle fee su più token con claimAll.
 contract BernieFactory {
     address public immutable implementation;
+    address public immutable treasury;
     address[] public tokens;
 
     event Created(address indexed token, address indexed creator);
 
-    constructor(address treasury) {
-        implementation = address(new Bernie(treasury));
+    constructor(address treasury_) {
+        treasury = treasury_;
+        implementation = address(new Bernie(treasury_));
+    }
+
+    /// Ritira le fee di `account` da ciascun token dell'elenco, in una transazione.
+    /// Chiamabile da chiunque: i fondi vanno sempre ad `account` (claimFeesFor). I token senza
+    /// fee per `account` sono saltati; se nessuno ne ha, NothingToClaim.
+    function claimAll(address account, address[] calldata list) external {
+        bool any;
+        for (uint256 i; i < list.length; ++i) {
+            if (Bernie(list[i]).feesOwed(account) == 0) continue;
+            Bernie(list[i]).claimFeesFor(account);
+            any = true;
+        }
+        if (!any) revert NothingToClaim();
     }
 
     function count() external view returns (uint256) {

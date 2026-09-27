@@ -287,6 +287,8 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
   .topbar, .logo, #seg{ max-width:680px; margin-left:auto; margin-right:auto }
   body.has-pf #viewTokens:not(.hide){ display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr); gap:20px; align-items:start }
   #viewTokens > .pagefoot{ grid-column:1 / -1 }
+  body.has-pf #viewTokens > #listCard{ grid-column:2; grid-row:1 / span 2 }
+  #viewTokens > #treasCard{ grid-column:1 }
   #viewTokens:not(.hide) #listCard .list{ max-height:calc(100vh - 300px); max-height:calc(100dvh - 300px); overflow-y:auto }
   body:not(.has-pf) #listCard{ max-width:780px; margin-left:auto; margin-right:auto }
   #viewDetail:not(.hide){ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(380px,1fr); gap:0 20px; align-items:start; grid-auto-flow:row dense }
@@ -385,6 +387,10 @@ html{ background:#000 }
       <div class="pfbig" id="pfEur">–</div>
       <div class="mono pfnat" id="pfNative"></div>
       <div class="list pf" id="pfList"></div>
+    </div>
+    <div class="card hide" id="treasCard">
+      <div class="row"><span class="lbl" data-i18n="tre.title">Tesoreria</span><span class="mono" id="treasAddr"></span></div>
+      <div id="treasRows"></div>
     </div>
     <div class="card" id="listCard">
       <div class="row"><span class="lbl" data-i18n="list.title">Token</span><span class="mono" id="listCount"></span></div>
@@ -631,12 +637,12 @@ const TYPE_TOKEN_METADATA = 19;
 // Deploy pubblici: compilano le impostazioni Solana in un tocco (test: frontend/test/emit.mjs li confronta con lib.rs)
 const PRESETS = { devnet: { rpc: 'https://api.devnet.solana.com', program: '8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH', net: 'devnet',
   treasury: 'G7EBp22JknV1CypYgiXjL37itb5DUgPUaf4q56E8ZxgZ,13hVFWngnyVLfXfWt9BWrJkQTmkDrk3EVRuvzN4SKPio,2pnMTJEN1qtSgTQRmxrK3sLD2aJQSFqnxSscynre1rTc,GaPJwGBApWFfYq4ciFAMYqZERrcjEaqxiFLi6EZFRfNt' },
-  testnet: { evmRpc: 'https://rpc.testnet.chain.robinhood.com', factory: '0x242c943D75dA2d874e76d9b16A75B165aaD845e0', chainId: 46630,
-  fromBlock: 125333163, explorer: 'https://explorer.testnet.chain.robinhood.com' } };
+  testnet: { evmRpc: 'https://rpc.testnet.chain.robinhood.com', factory: '0x39e13d9260cF9CFD03a7065B188697A71a2DF305', chainId: 46630,
+  fromBlock: 125366631, explorer: 'https://explorer.testnet.chain.robinhood.com' } };
 /* CONST-END */
 
 // EVM: ResidualPegFactory / ResidualPeg (selettori e topic calcolati con keccak256)
-const SEL = {count:'0x06661abd', tokens:'0x4f64b2be', create:'0x2b24a4ab', name:'0x06fdde03', symbol:'0x95d89b41', decimals:'0x313ce567', totalSupply:'0x18160ddd', k:'0xb4f40c61', k0:'0x93eed093', reserve:'0xcd3293de', residual:'0x69a48b71', penaltyBps:'0xecfad9fd', entryBps:'0x81566f90', creator:'0x02d05d3f', balanceOf:'0x70a08231', feesOwed:'0x13083c34', totalFeesOwed:'0xaa8b869a', mint:'0xa0712d68', redeem:'0x7cbc2373', donate:'0xed88c68e', claimFees:'0xd294f093', sweep:'0x35faa416'};
+const SEL = {count:'0x06661abd', tokens:'0x4f64b2be', create:'0x2b24a4ab', name:'0x06fdde03', symbol:'0x95d89b41', decimals:'0x313ce567', totalSupply:'0x18160ddd', k:'0xb4f40c61', k0:'0x93eed093', reserve:'0xcd3293de', residual:'0x69a48b71', penaltyBps:'0xecfad9fd', entryBps:'0x81566f90', creator:'0x02d05d3f', balanceOf:'0x70a08231', feesOwed:'0x13083c34', totalFeesOwed:'0xaa8b869a', mint:'0xa0712d68', redeem:'0x7cbc2373', donate:'0xed88c68e', claimFees:'0xd294f093', claimFeesFor:'0x74522292', claimAll:'0x13e7e058', treasury:'0x61d027b3', sweep:'0x35faa416'};
 const TOPIC = {state:'0xb2a993418bef66b66f2693b2becec23c28981a2836aca6ca3aa33fa3fd11a2f7', minted:'0x25b428dfde728ccfaddad7e29e4ac23c24ed7fd1a6e3e3f91894a9a073f5dfff', redeemed:'0xf3a670cd3af7d64b488926880889d08a8585a138ff455227af6737339a1ec262', donated:'0x2a01595cddf097c90216094025db714da3f4e5bd8877b56ba86a24ecead8e543', created:'0x587ece4cd19692c5be1a4184503d607d45542d2aca0698c0068f52e09ccb541c'};
 
 const store = {
@@ -675,7 +681,7 @@ it: {
  'toast.connectFirst':'Collega prima un wallet.', 'toast.noProgram':'Manca il Program ID nelle impostazioni.', 'toast.confirmed':'✓ {label}', 'toast.failed':'✗ {label}: {e}', 'toast.wrongChain':'Wallet su un\'altra rete.',
  'lbl.create':'Creazione token', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donazione', 'lbl.claim':'Ritiro fee', 'lbl.sweep':'Ritiro excess',
  'chain.all':'Tutte', 'wallet.title':'Wallet', 'wallet.connectOne':'Collega', 'wallet.disconnect':'Scollega', 'wallet.none':'non collegato', 'wallet.demo':'demo · saldo {b}',
- 'own.title':'Creatore', 'own.fees':'Fee da ritirare', 'own.excess':'Excess ritirabile (fee e resti)', 'btn.claim':'Ritira', 'btn.sweep':'Ritira', 'btn.close':'Chiudi',
+ 'tre.title':'Tesoreria', 'tre.total':'Fee del protocollo da ritirare', 'tre.on':'su {n} token', 'tre.none':'Nessuna fee da ritirare', 'btn.claimAll':'Ritira tutto', 'lbl.claimAll':'Ritiro fee della tesoreria', 'own.title':'Creatore', 'own.fees':'Fee da ritirare', 'own.excess':'Excess ritirabile (fee e resti)', 'btn.claim':'Ritira', 'btn.sweep':'Ritira', 'btn.close':'Chiudi',
  'pf.title':'Il tuo wallet', 'pf.count':'{n} token', 'pf.empty':'Nessun token Bernie in questo wallet.', 'pf.exit':'se esci ora {x}', 'pf.native':'{x} disponibili', 'wallet.hold':'I tuoi token', 'act.title':'Attività', 'act.more':'Mostra altro', 'act.none':'Nessuna operazione.',
  'ev.mint':'Mint', 'ev.redeem':'Redeem', 'ev.donate':'Donazione', 'ev.create':'Creato', 'ev.createdAt':'a {v}',
  errs: { ZeroAmount:'quantità zero', ExceedsSupply:'oltre la supply', Dust:'quantità troppo piccola', ZeroPayout:'incasso nullo', Slippage:'prezzo cambiato oltre la tolleranza', NoHolders:'nessun holder',
@@ -735,7 +741,7 @@ en: {
  'toast.connectFirst':'Connect a wallet first.', 'toast.noProgram':'Program ID missing in settings.', 'toast.confirmed':'✓ {label}', 'toast.failed':'✗ {label}: {e}', 'toast.wrongChain':'Wallet on another network.',
  'lbl.create':'Token creation', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donation', 'lbl.claim':'Fee claim', 'lbl.sweep':'Excess claim',
  'chain.all':'All', 'wallet.title':'Wallet', 'wallet.connectOne':'Connect', 'wallet.disconnect':'Disconnect', 'wallet.none':'not connected', 'wallet.demo':'demo · balance {b}',
- 'own.title':'Creator', 'own.fees':'Fees to claim', 'own.excess':'Claimable excess (fees and remainders)', 'btn.claim':'Claim', 'btn.sweep':'Claim', 'btn.close':'Close',
+ 'tre.title':'Treasury', 'tre.total':'Protocol fees to claim', 'tre.on':'across {n} tokens', 'tre.none':'No fees to claim', 'btn.claimAll':'Claim all', 'lbl.claimAll':'Treasury fee claim', 'own.title':'Creator', 'own.fees':'Fees to claim', 'own.excess':'Claimable excess (fees and remainders)', 'btn.claim':'Claim', 'btn.sweep':'Claim', 'btn.close':'Close',
  'pf.title':'Your wallet', 'pf.count':'{n} tokens', 'pf.empty':'No Bernie tokens in this wallet.', 'pf.exit':'if you exit now {x}', 'pf.native':'{x} available', 'wallet.hold':'Your tokens', 'act.title':'Activity', 'act.more':'Show more', 'act.none':'No operations.',
  'ev.mint':'Mint', 'ev.redeem':'Redeem', 'ev.donate':'Donation', 'ev.create':'Created', 'ev.createdAt':'at {v}',
  errs: { ZeroAmount:'zero amount', ExceedsSupply:'exceeds supply', Dust:'amount too small', ZeroPayout:'zero payout', Slippage:'price moved beyond tolerance', NoHolders:'no holders',
@@ -829,6 +835,7 @@ const explorerEvm = hash => cfg.explorer ? cfg.explorer.replace(/\/$/, '') + '/t
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 /* ===================== STATO ===================== */
+let treasuryEvm = null;   // treasury() della factory: il pannello Tesoreria compare solo a questo indirizzo
 let demo = true, programId = null, treasuries = [], conn = null, rentVault = 0n;
 let solWallet = null, pubkey = null, evmAddr = null;
 let nativeBal = { sol: null, rh: null };
@@ -838,6 +845,7 @@ let demoBal = store.get('demoBal', null);
 demoBal = demoBal ? { sol: BigInt(demoBal.sol), rh: BigInt(demoBal.rh) } : { sol: 100n * 10n**9n, rh: 10n * 10n**18n };
 const saveDemoBal = () => store.set('demoBal', { sol: demoBal.sol.toString(), rh: demoBal.rh.toString() });
 function applyCfg(){
+  treasuryEvm = null;
   programId = null; treasuries = [];
   if (W && cfg.program){ try { programId = new W.PublicKey(cfg.program); conn = new W.Connection(cfg.rpc, 'confirmed'); } catch { programId = null; } }
   if (W && programId){ try { treasuries = String(cfg.treasury).split(/[\s,]+/).filter(Boolean).map(x => new W.PublicKey(x)); } catch { treasuries = []; } }
@@ -1117,6 +1125,7 @@ async function loadBalances(){
     if (pubkey) nativeBal.sol = demoBal.sol; if (evmAddr) nativeBal.rh = demoBal.rh; return; }
   if (pubkey && conn){ try { nativeBal.sol = BigInt(await conn.getBalance(pubkey)); } catch (e) { console.warn(e); } }
   if (evmAddr){ try { nativeBal.rh = BigInt(await erpc('eth_getBalance', [evmAddr, 'latest'])); } catch (e) { console.warn(e); } }
+  if (evmAddr && hasEvm() && !treasuryEvm){ try { treasuryEvm = decA(await erpc('eth_call', [{ to: cfg.factory, data: SEL.treasury }, 'latest'])); } catch (e) { console.warn(e); } }
   const sol = tokens.filter(tk => tk.chain === 'sol'), rh = tokens.filter(tk => tk.chain === 'rh');
   if (pubkey && sol.length){ try { const infos = await conn.getMultipleAccountsInfo(sol.map(tk => ataOf(pubkey, tk.mint))); sol.forEach((tk, i) => { balances[tk.mint] = parseTokenAcc(infos[i]?.data) ?? 0n; }); } catch (e) { console.warn(e); } }
   if (evmAddr && rh.length){ try { const r = await ecalls(rh.flatMap(tk => [{ to: tk.mint, data: SEL.balanceOf + encA(evmAddr) }, { to: tk.mint, data: SEL.feesOwed + encA(evmAddr) }]));
@@ -1167,7 +1176,7 @@ let sortKey = 'recent';
 const SORTS = { recent: (a, b) => (b.lastActivity || 0) - (a.lastActivity || 0), tvl: (a, b) => Number(b.s.bal) / Number(CHAINS[b.chain].den) * (rates[b.chain] || 1) - Number(a.s.bal) / Number(CHAINS[a.chain].den) * (rates[a.chain] || 1), name: (a, b) => nameOf(a).localeCompare(nameOf(b)) };
 const sorted = () => [...tokens].filter(tk => (chainFilter === 'all' || tk.chain === chainFilter) && matches(tk)).sort(SORTS[sortKey]);
 const cur = () => tokens.find(tk => tk.mint === current);
-function renderAll(){ renderToken(); renderAmount(); renderList(); renderOwner(); renderPortfolio(); renderActivity(); }
+function renderAll(){ renderToken(); renderAmount(); renderList(); renderOwner(); renderPortfolio(); renderTreasury(); renderActivity(); }
 function ago(sec){
   if (!sec) return ''; const d = nowSec() - sec; const rtf = new Intl.RelativeTimeFormat(LOCALE(), { numeric: 'auto', style: 'short' });
   if (d < 60) return rtf.format(-Math.max(d, 1), 'second'); if (d < 3600) return rtf.format(-Math.floor(d / 60), 'minute');
@@ -1207,6 +1216,23 @@ function renderActivity(){
     const fresh = e.fresh && nowSec() - e.time < 6;
     return `<div class="ev ${fresh ? 'new' : ''}"><span class="ic ${cls}">${ic}</span><span class="tx"><b>${title}${e.dk ? ' <i class="kup">' + ICON.kup + '</i>' : ''}</b><small>${[who, ago(e.time)].filter(Boolean).join(' · ')}</small></span><span class="am ${pos ? 'pos' : ''}">${amt}</span></div>`;
   }).join('') + (evs.length > actShown ? `<button class="actmore" id="actMore">${t('act.more')}</button>` : '');
+}
+// Pannello Tesoreria: solo se il wallet EVM collegato è treasury() della factory. Le fee del
+// protocollo si ritirano da tutti i token con una transazione (factory.claimAll).
+const isTreasury = () => !demo && !!evmAddr && !!treasuryEvm && treasuryEvm.toLowerCase() === evmAddr.toLowerCase();
+const treasuryOwed = () => tokens.filter(tk => tk.chain === 'rh' && tk.owed > 0n);
+function renderTreasury(){
+  const card = $('#treasCard'); if (!isTreasury()){ card.classList.add('hide'); return; }
+  card.classList.remove('hide'); $('#treasAddr').textContent = short(evmAddr);
+  const owed = treasuryOwed(), tot = owed.reduce((a, tk) => a + tk.owed, 0n);
+  $('#treasRows').innerHTML = tot > 0n
+    ? `<div class="orow"><div><small>${t('tre.total')}</small><b>${fmtNat('rh', tot)}</b><small>${t('tre.on', { n: owed.length })}</small></div><button class="chip" id="treasClaim">${t('btn.claimAll')}</button></div>`
+    : `<div class="orow"><div><small>${t('tre.none')}</small></div></div>`;
+}
+async function treasuryClaimAll(){
+  const owed = treasuryOwed(); if (!isTreasury() || !owed.length) return;
+  const data = SEL.claimAll + encA(evmAddr) + encU(64) + encU(owed.length) + owed.map(tk => encA(tk.mint)).join('');
+  await sendEvm(cfg.factory, data, 0n, t('lbl.claimAll'));
 }
 function renderOwner(){
   const tk = cur(); const card = $('#ownerCard'); if (!tk || !detailOpen){ card.classList.add('hide'); return; }
@@ -1466,6 +1492,7 @@ $('#createChain').addEventListener('click', e => { const b = e.target.closest('b
 $('#btnBack').addEventListener('click', closeDetail);
 $('#actList').addEventListener('click', e => { if (e.target.id === 'actMore'){ actShown += 10; renderActivity(); } });
 $('#ownRows').addEventListener('click', e => { const b = e.target.closest('button'); if (b) ownerAct(b.dataset.own); });
+$('#treasRows').addEventListener('click', e => { if (e.target.closest('#treasClaim')) treasuryClaimAll(); });
 $('#price').addEventListener('input', () => { $('#price').dataset.touched = '1'; updateDerive(); });
 ['#nick', '#sym', '#uri', '#penP', '#penE'].forEach(id => $(id).addEventListener('input', updateDerive));
 $('#btnRef').addEventListener('click', () => { $('#penP').value = 200; $('#penE').value = 100; updateDerive(); });
