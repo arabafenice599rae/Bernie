@@ -24,7 +24,8 @@ Ogni caso parte da `create(P, p, e)`; ogni passo registra esito e stato completo
 
 ## Limiti di cattura
 
-P6c e P6d usano gli ε di §8: `ε_c = ⌊V/SCALE⌋ + 2` e `ε_d = ⌊A·(O+V)/((O+A)·SCALE)⌋ + 1`.
+P6c e P6d usano gli ε di §8, con la stessa quota del residuo
+`q = ⌊A·(O+V)/((O+A)·SCALE)⌋`: `ε_c = q + 2`, `ε_d = q + 1`.
 Il test genera supply piccole, medie e fino a 10¹⁸, residuo `Q₀` massimo, condizione di P6d
-al limite e k anche sotto `MIN_PRICE`. Con ε = 1 al posto di ε_d, o senza il termine `⌊V/SCALE⌋`
-in ε_c, il test fallisce.
+al limite e k anche sotto `MIN_PRICE`. Togliendo `q` da ε_c, o usando ε = 1 per P6d,
+il test fallisce.

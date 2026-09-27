@@ -8,7 +8,7 @@
 - **Lettura dei metadati Token-2022** descritta correttamente: scansione del TLV fino al tipo 19.
 - **Esempio di §8 ricalcolato** con la formula delle fee v1.4.
 - **Requisito operativo:** le tesorerie Solana devono restare sempre rent-exempt.
-- **P6c e P6d con ε espliciti.** La cattura include la quota dell'attaccante del residuo preesistente: ε_c = ⌊V/SCALE⌋ + 2 per P6c, ε_d = ⌊A·(O+V)/((O+A)·SCALE)⌋ + 1 per P6d (prima ε = 1, smentito dai test con supply reali).
+- **P6c e P6d con ε espliciti.** La cattura include la quota dell'attaccante del residuo preesistente, q = ⌊A·(O+V)/((O+A)·SCALE)⌋: ε_c = q + 2 per P6c, ε_d = q + 1 per P6d (prima ε = 1, smentito dai test con supply reali). P6d dichiarata per k ≥ `MIN_PRICE`.
 - **§9 riproducibile.** Crescita di k da formula chiusa invece che da simulazione; pareggio corretto in +3,88%.
 
 ## 1. Panoramica
@@ -300,8 +300,13 @@ Da ogni stato che soddisfa I1–I6, ogni transizione riuscita produce un unico s
 - **P6, cattura limitata.** Un attaccante che minta `A` prima del redeem `V` di una vittima può appropriarsi di parte della penalità:
     - **P6a, vittima indenne.** A parità di stato iniziale, stesso `V` e nessun'altra operazione, vale `out_V(con attaccante) ≥ out_V(senza attaccante)`, esattamente.
     - **P6b, nessuna perdita di valore di backing.** Per ogni holder passivo con H unità vale `H·k_dopo ≥ H·k_prima`. Il minore guadagno rispetto allo scenario senza attacco è la diluizione accettata.
-    - **P6c, cattura limitata alla penalità.** Profitto mark-to-k dell'attaccante ≤ `pen_V/SCALE + ε_c`, con `ε_c = ⌊V/SCALE⌋ + 2` unità native. Oltre alla quota della penalità, l'attaccante può ricevere una quota del residuo già presente (`Q₀ < S₀` sotto-unità per I6; la parte catturata resta sotto `V` sotto-unità) e due arrotondamenti: il ceil del proprio mint e il floor del lordo della vittima.
-    - **P6d, soglia.** Con `O` = holder diversi da vittima e attaccanti, e senza flussi in ingresso tra l'entrata dell'attaccante e il redeem della vittima: se `p · V ≤ (e + FEE_C + FEE_P) · O`, il profitto mark-to-k dell'attaccante è ≤ `ε_d = ⌊A·(O + V) / ((O + A)·SCALE)⌋ + 1` unità native. Il primo termine è la quota pro-rata dell'attaccante di un residuo pieno (`O + V` sotto-unità), che può far scattare k di un passo in più: vale 0 quando `A·(O + V) < (O + A)·SCALE` ed è al massimo `1/k` del valore della posizione dell'attaccante, sotto 10⁻⁶ con `P ≥ MIN_PRICE`. Con donazioni intermedie l'attaccante ne cattura una quota: è la classe del front-running delle donazioni, già accettata in SolPeg.
+    - **P6c, cattura limitata alla penalità.** Profitto mark-to-k dell'attaccante ≤ `pen_V/SCALE + ε_c`, con `ε_c = q + 2` unità native e `q = ⌊A·(O + V) / ((O + A)·SCALE)⌋`. Oltre alla quota della penalità, l'attaccante riceve al più la propria quota pro-rata del residuo già presente (`Q₀ < S₀ = O + V` sotto-unità per I6), cioè `q`, e due arrotondamenti: il ceil del proprio mint e il floor del lordo della vittima.
+    - **P6d, soglia.** Con `O` = holder diversi da vittima e attaccanti, e senza flussi in ingresso tra l'entrata dell'attaccante e il redeem della vittima: se `p · V ≤ (e + FEE_C + FEE_P) · O`, il profitto mark-to-k dell'attaccante è ≤ `ε_d = q + 1` unità native, con `q` come in P6c. La quota del residuo può far scattare k di un passo in più; P6c e P6d differiscono solo per il numero di arrotondamenti. Entità di `q`:
+        - vale 0 quando `A·(O + V) < (O + A)·SCALE`;
+        - in assoluto `q ≤ ⌊S₀/SCALE⌋`, cioè al massimo 1 lamport (o wei) per ogni token intero in circolazione prima dell'attacco: 1/k del TVL, sotto 10⁻⁶ con `P ≥ MIN_PRICE`;
+        - non è limitato rispetto alla penalità della vittima né alla posizione dell'attaccante: con V = 1 unità base, O = A = 10¹⁵ e k = 10⁶ vale 500.000 lamport contro una penalità di 10⁻⁵ lamport. In quel regime il limite è largo, perché le fee dell'attaccante superano di molto `q`.
+
+      **Dominio:** P6d è dichiarata per `k ≥ MIN_PRICE`. Sotto quella soglia, con e = 0, le fee dell'attaccante possono arrotondarsi a zero e ε = 1 non basta; i test verificano che `q + 1` regge anche lì. Con donazioni intermedie l'attaccante ne cattura una quota: è la classe del front-running delle donazioni, già accettata in SolPeg.
 
 **Metrica.** Profitto mark-to-k = (unità detenute × k finale + nativo ricevuto) − nativo versato. È la metrica più conservativa: qualunque uscita, anche frazionata, realizza al massimo questo valore.
 
@@ -546,7 +551,7 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 | Fuzz multi-attore (I1–I6, P3, excess ≥ 0, P2) su SCALE 10, 10⁹, 10¹⁸ | 17.631 operazioni per SCALE | 0 violazioni |
 | P6a contro lo scenario senza attaccante, ricerca casuale | 199.852 | 0 violazioni (53 con la formula della v1.3) |
 | P6a, P6b, P6d con k grandi e piccoli, due attaccanti | 300.352 in totale | 0 violazioni; ε = 1 (k piccoli, SCALE 10), altrimenti 0. Supply piccole: vedi la riga seguente |
-| P6c e P6d con supply fino a 10¹⁸, residuo `Q₀` massimo, condizione di P6d al limite, k anche sotto `MIN_PRICE` | ~260.000 (ricerca mirata) su SCALE 10, 10⁹, 10¹⁸ | 0 violazioni con ε_c ed ε_d; con ε = 1 P6d fallisce (fino a 31 lamport su SCALE 10⁹, sopra `MIN_PRICE`) |
+| P6c e P6d con supply fino a 10¹⁸, residuo `Q₀` massimo, condizione di P6d al limite, k anche sotto `MIN_PRICE` | ~260.000 (ricerca mirata) su SCALE 10, 10⁹, 10¹⁸ | 0 violazioni con ε_c = q + 2 ed ε_d = q + 1; con ε = 1 P6d fallisce (fino a 31 lamport su SCALE 10⁹, sopra `MIN_PRICE`); senza `q` in ε_c P6c fallisce |
 | Donazione intermedia | 27.648 | P6a e P6b reggono; P6d esclusa per definizione |
 | P6b e P6c, griglia ampia | 144.000 per SCALE | cattura massima 96,8% della penalità |
 | Uscita frazionata ≤ mark-to-k | 38.064 | 0 violazioni |
@@ -572,6 +577,8 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 - nel redeem mai `out > g` né `g·SCALE > full − pen`;
 - `ft(base+1) − ft(base) ∈ {0, 1}` e `fc + fp == ft`;
 - P5.
+
+**Portata di Kani.** È bounded model checking, non una prova generale. Kani dimostra I1–I6, la conservazione di `R + Q` e la canonicità di absorb, mint, redeem e donate con `SCALE = 10` su input fino a 8 bit: k ≤ 255; S, Q e u ≤ 31. La monotonia di `fees` e `fc + fp == ft` valgono invece su tutto `u64`. La corrispondenza con le scale reali è coperta dai vettori differenziali.
 
 **Prima del deploy:**
 
@@ -604,8 +611,9 @@ La cattura è la stessa struttura della JIT liquidity in Uniswap v3: chi esegue 
 | `PEN_MIN` / `PEN_MAX` | 100 / 1000 bps | 100 / 1000 bps |
 | e | 0 ≤ e ≤ p | 0 ≤ e ≤ p |
 | riferimento per il trading frequente | p = 200, e = 100 | uguale |
-| ε_c (P6c) | `⌊V/SCALE⌋ + 2` unità native | uguale |
-| ε_d (P6d) | `⌊A·(O + V)/((O + A)·SCALE)⌋ + 1` unità native | uguale |
+| q (quota del residuo) | `⌊A·(O + V)/((O + A)·SCALE)⌋ ≤ ⌊S₀/SCALE⌋` | uguale |
+| ε_c (P6c) | `q + 2` unità native | uguale |
+| ε_d (P6d, k ≥ `MIN_PRICE`) | `q + 1` unità native | uguale |
 | `MIN_PRICE` | 10⁶ lamport | 10¹² wei |
 | `MAX_PRICE` | 10¹⁵ lamport | 10²⁴ wei |
 | metadati | nome ≤ 32, simbolo ≤ 10, URI ≤ 200 byte | nome ≤ 32, simbolo ≤ 10 |

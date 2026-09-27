@@ -9,17 +9,22 @@ FEE = FEE_C + FEE_P
 
 
 
-def eps_c(V, SCALE):
-    """P6c: quota del residuo preesistente (Q₀ < S₀) più due arrotondamenti, in unità native."""
-    return V // SCALE + 2
+def residual_share(O, V, A, SCALE):
+    """Quota pro-rata dell'attaccante di un residuo pieno (Q₀ < O + V sotto-unità), in unità native.
+
+    Al massimo ⌊S₀/SCALE⌋, cioè 1/k del TVL del vault prima dell'attacco.
+    """
+    return A * (O + V) // ((O + A) * SCALE)
+
+
+def eps_c(O, V, A, SCALE):
+    """P6c: quota del residuo più due arrotondamenti (ceil del mint, floor del lordo)."""
+    return residual_share(O, V, A, SCALE) + 2
 
 
 def eps_d(O, V, A, SCALE):
-    """P6d: quota pro-rata dell'attaccante di un residuo pieno (O + V sotto-unità), più 1.
-
-    Vale 1 se A·(O + V) < (O + A)·SCALE; al massimo 1/k della posizione dell'attaccante.
-    """
-    return A * (O + V) // ((O + A) * SCALE) + 1
+    """P6d: quota del residuo più un arrotondamento."""
+    return residual_share(O, V, A, SCALE) + 1
 
 
 def clone(v):
@@ -209,7 +214,7 @@ class Economics(unittest.TestCase):
                 profit = A * att.k // SCALE - cost  # mark-to-k
                 pen_v = cdiv(V * k_before * v.p, BPS)
                 ctx = f"SCALE={SCALE} O={O} V={V} A={A} p={p} e={e} k={k_before}"
-                self.assertLessEqual(profit * SCALE, pen_v + eps_c(V, SCALE) * SCALE, "P6c " + ctx)
+                self.assertLessEqual(profit * SCALE, pen_v + eps_c(O, V, A, SCALE) * SCALE, "P6c " + ctx)
                 if v.p * V <= (v.e + FEE) * O:
                     checked["d"] += 1
                     self.assertLessEqual(profit, eps_d(O, V, A, SCALE), "P6d " + ctx)
