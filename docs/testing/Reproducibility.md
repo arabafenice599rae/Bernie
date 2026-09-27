@@ -31,9 +31,9 @@ cargo install --locked kani-verifier && cargo kani setup
 | Differential stato, 10⁶ passi | `cd solana && cargo build --release -p bernie-state --example diff_stream && python3 ../tools/redteam/stream.py --seed 1 --seqs 1000 --ops 1000 --scale 10 \| ./target/release/examples/diff_stream` |
 | Differential programma (Mollusk) | `python3 tools/redteam/gen.py sol --seed 1000 --seqs 100 --ops 500 --users 8 --out /tmp/seq && cd solana && BERNIE_DIFF_DIR=/tmp/seq cargo test -p bernie-program --release --test differential -- --nocapture` |
 | Marathon Solana (120 utenti × 100k) | `python3 tools/redteam/gen.py sol --seed 777 --seqs 1 --ops 100000 --users 120 --sparse 1000 --out /tmp/marathon && cd solana && BERNIE_DIFF_DIR=/tmp/marathon cargo test -p bernie-program --release --test differential` |
-| Differential contratti (Foundry) | `cd evm && python3 ../tools/redteam/gen.py evm --seed 5000 --seqs 100 --ops 500 --users 8 --out diff && forge test --match-contract DifferentialTest` |
+| Differential contratti (Foundry) | `cd evm && python3 ../tools/redteam/gen.py evm --seed 5000 --seqs 100 --ops 500 --users 8 --out diff && forge test --match-contract DifferentialTest --gas-limit 18446744073709551615` (oltre ~10⁵ passi il limite di default non basta) |
 | Test avversariali | `cargo test -p bernie-program --release --test adversarial` e `forge test --match-contract AdversarialTest` |
-| Mutation testing | `python3 tools/mutation/mutate.py state\|evm\|solana` (singoli mutanti: `--only ID`) |
+| Mutation testing | `python3 tools/mutation/mutate.py state\|evm\|solana` (sottoinsieme: `--only REGEX` sugli id) |
 | Kani | `cd solana/state && cargo kani --harness NOME` (5 harness, elenco in Baseline.md) |
 | Halmos | `cd evm && halmos --contract BernieMathHalmos --function check_NOME --solver-timeout-assertion 0` |
 

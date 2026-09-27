@@ -98,7 +98,8 @@ jobs:
       - name: 500 sequenze × 500 passi, 8 utenti
         run: |
           python3 ../tools/redteam/gen.py evm --seed 5000 --seqs $((500 * SCALE)) --ops 500 --users 8 --out diff
-          forge test --match-contract DifferentialTest -vv
+          # un solo test legge tutte le sequenze: il limite di gas di default (2³⁰) non basta
+          forge test --match-contract DifferentialTest --gas-limit 18446744073709551615 -vv
 
   mutation:
     name: Mutation testing (${{ matrix.target }})
