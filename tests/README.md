@@ -13,7 +13,7 @@ Tutto parte dal modello di riferimento dell'Appendice A, copiato in `model/berni
 | Kani su `state.rs` | `cd solana/state && cargo kani` | CI (un job per harness) |
 | Transazioni del frontend (`frontend/test/emit.mjs`) | `cd frontend/test && npm ci && node emit.mjs` (`--check` in CI) | locale, CI |
 | Programma Solana su Mollusk: vettori 10⁹, CPI Guard, deleghe, CU, transazioni del frontend | `cd solana/program && cargo build-sbf && cd .. && cargo test -p bernie-program --release` | locale (Agave 4.2.2), CI |
-| Interfaccia EVM | `cd evm && forge build` | CI |
+| Contratti EVM: vettori 10¹⁸, factory, fee, sweep, rientranza, ABI | `cd evm && npm ci && npx hardhat test solidity` (locale) oppure `forge test` | locale (Hardhat), CI (Foundry) |
 
 Solo libreria standard Python; `tools/keccak.py` è un Keccak-256 in Python puro.
 

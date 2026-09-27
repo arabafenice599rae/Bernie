@@ -8,6 +8,7 @@ interface IBernieFactory {
     event Created(address indexed token, address indexed creator);
 
     function count() external view returns (uint256);
+    function implementation() external view returns (address);
     function tokens(uint256 i) external view returns (address);
     function create(
         uint256 price,
@@ -42,6 +43,7 @@ interface IBernie {
     function creator() external view returns (address);
     function feesOwed(address who) external view returns (uint256);
     function totalFeesOwed() external view returns (uint256);
+    function treasury() external view returns (address);
 
     // Scritture
     function mint(uint256 u) external payable;

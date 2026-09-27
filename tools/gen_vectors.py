@@ -127,15 +127,16 @@ def edge_cases(SCALE, lo, hi, cap, solana):
     c.step("mint", u=0)                      # ZeroAmount
     c.step("donate", a=5)                    # NoHolders
     c.step("redeem", u=1, min_out=0)         # ExceedsSupply (S == 0)
-    c.step("mint", u=10**6)
-    c.step("redeem", u=10**6 + 1, min_out=0)  # ExceedsSupply
-    c.step("redeem", u=0, min_out=0)          # ZeroAmount
-    c.step("donate", a=0)                     # ZeroAmount
-    c.step("mint", u=10, max_cost=0)          # Slippage
-    c.step("redeem", u=10**5, min_out=U64)    # Slippage
-    c.step("redeem", u=1, min_out=0)          # Dust o ZeroPayout con prezzi bassi
+    # 10¹² unità: abbastanza perché il redeem paghi qualcosa su ogni SCALE (Slippage raggiungibile).
+    c.step("mint", u=10**12)
+    c.step("redeem", u=10**12 + 1, min_out=0)  # ExceedsSupply
+    c.step("redeem", u=0, min_out=0)           # ZeroAmount
+    c.step("donate", a=0)                      # ZeroAmount
+    c.step("mint", u=10, max_cost=0)           # Slippage
+    c.step("redeem", u=10**11, min_out=U64)    # Slippage
+    c.step("redeem", u=1, min_out=0)           # Dust o ZeroPayout con prezzi bassi
     c.step("donate", a=7)
-    c.step("redeem", u=10**6 - 1, min_out=0)
+    c.step("redeem", u=10**12 - 1, min_out=0)
     c.step("redeem", u=1, min_out=0)          # ultimo uscente: S → 0, Q → 0
     c.step("mint", u=5)                      # rientro al k raggiunto
     out.append(c.out)
@@ -195,12 +196,46 @@ def generate():
     return files
 
 
+def flat_evm(text):
+    """Vettori SCALE 10¹⁸ come array paralleli, un elemento per passo (per vm.parseJson* di Foundry).
+
+    op: 1 mint, 2 redeem, 3 donate. arg: u oppure a. limit: max_cost (mint) oppure min_out
+    (redeem), valido se has_limit = 1. first: 1 al primo passo di ogni caso. err: nome
+    dell'errore atteso, "" se il passo riesce. Interi come stringhe decimali.
+    """
+    doc = json.loads(text)
+    cols = {c: [] for c in ("first", "price", "p", "e", "op", "arg", "limit", "has_limit", "ok", "err", "result",
+                            "k", "R", "Q", "S", "bal", "fc", "fp")}
+    for case in doc["cases"]:
+        prm = case["params"]
+        for i, st in enumerate(case["steps"]):
+            cols["first"].append("1" if i == 0 else "0")
+            cols["price"].append(prm["price"])
+            cols["p"].append(str(prm["penalty_bps"]))
+            cols["e"].append(str(prm["entry_bps"]))
+            cols["op"].append({"mint": "1", "redeem": "2", "donate": "3"}[st["op"]])
+            cols["arg"].append(st.get("u") or st.get("a") or "0")
+            lim = st.get("max_cost") if st["op"] == "mint" else st.get("min_out")
+            cols["limit"].append("0" if lim is None else lim)
+            cols["has_limit"].append("0" if lim is None else "1")
+            ok = st["expect"]["ok"]
+            cols["ok"].append("1" if ok else "0")
+            cols["err"].append("" if ok else st["expect"]["error"])
+            cols["result"].append((st["expect"].get("result") or "0") if ok else "0")
+            for key in ("k", "R", "Q", "S", "bal", "fc", "fp"):
+                cols[key].append(st["state"][key])
+    cols["n"] = str(len(cols["op"]))
+    return json.dumps(cols, sort_keys=True, separators=(",", ":")) + "\n"
+
+
 def main():
     check = "--check" in sys.argv
     outdir = os.path.join(ROOT, "vectors")
     os.makedirs(outdir, exist_ok=True)
     stale = []
-    for fname, text in generate().items():
+    files = generate()
+    files["scale_1e18.flat.json"] = flat_evm(files["scale_1e18.json"])
+    for fname, text in files.items():
         path = os.path.join(outdir, fname)
         if check:
             try:
@@ -212,7 +247,8 @@ def main():
         else:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(text)
-            print(f"{path}: {text.count(chr(34) + 'op' + chr(34))} passi")
+            steps = json.loads(text)["n"] if fname.endswith(".flat.json") else text.count(chr(34) + "op" + chr(34))
+            print(f"{path}: {steps} passi")
     if stale:
         print("vettori non aggiornati, eseguire tools/gen_vectors.py:", ", ".join(stale))
         return 1

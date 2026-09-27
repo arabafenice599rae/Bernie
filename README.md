@@ -417,6 +417,7 @@ Il byte 0 dei dati è il tag dell'istruzione; gli interi sono little-endian; le 
 
 ```
 function count() view returns (uint256)
+function implementation() view returns (address)
 function tokens(uint256) view returns (address)
 function create(uint256 price, uint16 penaltyBps, uint16 entryBps, string name, string symbol, bytes32 salt) returns (address)
 event Created(address indexed token, address indexed creator)
@@ -427,7 +428,7 @@ event Created(address indexed token, address indexed creator)
 ```
 name(), symbol(), decimals(), totalSupply(), balanceOf(address),
 k(), k0(), reserve(), residual(), penaltyBps(), entryBps(), creator(),
-feesOwed(address), totalFeesOwed()
+feesOwed(address), totalFeesOwed(), treasury()
 ```
 
 **Token, scritture:**
@@ -476,11 +477,13 @@ Selettori e topic sono nell'Appendice B.
 
 ## 13. Mappa EVM
 
-- **Componenti OZ 5.x** (tag esatto fissato): `ERC20` (con override di `_update` contro i trasferimenti verso `address(this)`), `Clones` con argomenti immutabili, `Math.mulDiv`, `ReentrancyGuardTransient` (fallback `ReentrancyGuard`), `Address.sendValue`.
+- **Componenti OZ 5.6.1** (versione esatta): `ERC20` (con override di `_update` contro i trasferimenti verso `address(this)`), `Clones` con argomenti immutabili (`cloneDeterministicWithImmutableArgs`, `fetchCloneArgs`), `ReentrancyGuardTransient`, `Address.sendValue`. `Math.mulDiv` non serve: con i limiti di §2 nessun prodotto intermedio si avvicina a 2²⁵⁶. solc 0.8.30, EVM Cancun.
 - **Contratti:**
   - `BernieMath`: library pura, l'unico codice che Halmos deve dimostrare;
   - `Bernie`: implementazione, niente `receive()`, `fallback()` o initializer;
-  - `BernieFactory`: senza owner, salt effettivo `keccak256(msg.sender, salt)`, enumerazione con `count()` e `tokens(i)`.
+  - `BernieFactory`: senza owner, salt effettivo `keccak256(msg.sender, salt)`, enumerazione con `count()` e `tokens(i)`, validazione di prezzo, penalità e metadati.
+- **Argomenti immutabili del clone:** `abi.encode(creator, penaltyBps, entryBps, k0, name, symbol)`; `name()` e `symbol()` li leggono da lì. La tesoreria è un `immutable` dell'implementazione, quindi è la stessa per tutti i cloni di una factory.
+- **Errori:** quelli di §7 come custom error senza argomenti (`ZeroAmount()`, …). `Overflow` (10) non ha un errore dedicato: l'aritmetica checked di Solidity fallisce con `Panic(0x11)`.
 - **Ordine in ogni funzione:**
   1. `nonReentrant`;
   2. calcolo puro;
@@ -588,8 +591,8 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 
 **Prima del deploy:**
 
-- [ ] Programmi scritti sull'interfaccia della sezione 11. Solana fatto (`solana/program`); EVM da fare.
-- [ ] Vettori con i casi peggiori portati in Mollusk e Foundry, compreso il redeem con CPI Guard attivo e disattivo. Mollusk fatto (1.445 passi SCALE 10⁹, CPI Guard attivo e disattivo); Foundry da fare.
+- [x] Programmi scritti sull'interfaccia della sezione 11: Solana (`solana/program`) ed EVM (`evm/src`).
+- [ ] Vettori con i casi peggiori portati in Mollusk e Foundry, compreso il redeem con CPI Guard attivo e disattivo. Mollusk fatto (SCALE 10⁹, CPI Guard attivo e disattivo); Foundry fatto (SCALE 10¹⁸, provato in locale con Hardhat 3): da spuntare con la CI Foundry verde.
 - [ ] Probe TSTORE su testnet 46630 e misura delle CU su devnet.
 - [ ] Indirizzi reali di tesoreria (N per Solana).
 - [ ] Upgrade authority revocata su Solana; sorgenti verificati sugli explorer.
@@ -758,6 +761,8 @@ class Ledger:
 | `donate()` | `0xed88c68e` |
 | `claimFees()` | `0xd294f093` |
 | `sweep()` | `0x35faa416` |
+| `treasury()` | `0x61d027b3` |
+| `implementation()` | `0x5c60da1b` |
 
 | Evento | Topic 0 |
 |---|---|

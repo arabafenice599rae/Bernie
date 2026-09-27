@@ -135,14 +135,22 @@ jobs:
           args: --harness ${{ matrix.harness }}
 
   evm:
-    name: Interfaccia EVM (Foundry)
+    name: Contratti EVM (Foundry, vettori 1e18)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: evm
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dipendenze (forge-std da GitHub via HTTPS)
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          npm ci
       - uses: foundry-rs/foundry-toolchain@v1
-      - run: forge build
+      - run: forge build --sizes
+      - run: forge test -vv
       - name: Selettori secondo forge
         run: forge inspect IBernie methodIdentifiers && forge inspect IBernieFactory methodIdentifiers

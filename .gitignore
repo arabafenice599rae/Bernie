@@ -4,3 +4,6 @@ solana/target/
 evm/out/
 evm/cache/
 frontend/test/node_modules/
+evm/node_modules/
+evm/artifacts/
+evm/cache_hardhat/
