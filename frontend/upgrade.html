@@ -31,6 +31,7 @@
   <div class="card" id="checks"><div class="row"><span>Stato</span><b id="status">collega il wallet</b></div></div>
   <button id="connect">Collega Phantom</button>
   <button id="sign" disabled>Firma l'upgrade</button>
+  <p style="margin:12px 0 0; font-size:13px">Prima di ogni firma la pagina simula la transazione su devnet e si ferma se fallisce; il wallet firma soltanto e l'invio a devnet lo fa la pagina. Se il wallet non è in modalità devnet mostrerà «Impossibile simulare»: la sua simulazione avviene su mainnet, dove il programma non esiste.</p>
   <div class="card"><div id="log">—</div></div>
 </main>
 <script>
@@ -98,7 +99,14 @@ $('#sign').addEventListener('click', async () => {
     const send = async (label, ...ixs) => {
       const tx = new W.Transaction().add(W.ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }), ...ixs);
       tx.feePayer = auth; tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
-      const { signature } = await wallet.signAndSendTransaction(tx);
+      // Simulazione su devnet fatta dalla pagina: vale qualunque sia la rete impostata nel wallet.
+      log(label + ': simulazione su ' + RPC + '…');
+      const sim = await conn.simulateTransaction(tx);
+      if (sim.value.err) throw new Error(label + ': simulazione fallita, non firmare. ' + JSON.stringify(sim.value.err) + '\n' + (sim.value.logs || []).slice(-4).join('\n'));
+      log(label + ': simulazione su devnet riuscita (' + (sim.value.unitsConsumed || '?') + ' CU). Firma in Phantom…');
+      // Il wallet firma soltanto; l'invio lo fa la pagina, sulla rete verificata qui sopra.
+      const signed = await wallet.signTransaction(tx);
+      const signature = await conn.sendRawTransaction(signed.serialize());
       log(label + ': ' + signature + '\nIn attesa di conferma…');
       const r = await conn.confirmTransaction(signature, 'confirmed'); if (r.value?.err) throw new Error(label + ' fallita: ' + JSON.stringify(r.value.err));
       return signature;
