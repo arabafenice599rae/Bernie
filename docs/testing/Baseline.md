@@ -49,7 +49,15 @@ riferimento: `4583bf5` (merge della PR #6, prima di ogni test del red team). Mac
 | Kani `fees_step_and_split` | VERIFIED | 164 s |
 | Halmos (9 `check_*` su `BernieMathHalmos`) | vedi sotto | |
 
-HALMOS_TABLE
+| Halmos (locale) `check_absorb` | PASS | 327 s |
+| Halmos (locale) `check_donate` | PASS | 151 s |
+| Halmos (locale) `check_fees` | PASS | 439 s |
+| Halmos (locale) `check_mint_u1` | PASS | 4 134 s |
+| Halmos (CI, run 36355763150) tutti e 9 i `check_*` | PASS | 1–52 min per harness |
+
+In locale Halmos gira un harness alla volta su 4 vCPU condivise con le altre campagne: dopo i
+primi quattro l'esecuzione locale è stata fermata e fanno fede i 9 job della CI `formal.yml`
+(stesso `BernieMath`, commit `430808f`), tutti verdi insieme ai 5 Kani.
 
 ## Warning e note
 

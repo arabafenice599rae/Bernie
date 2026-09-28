@@ -15,7 +15,7 @@ La logica del protocollo non è stata modificata: `solana/program/src`, `solana/
 
 [Baseline.md](Baseline.md): tutte le suite esistenti verdi (bernie-state 8 test, programma
 12, Foundry 17, Python 17 + 10 subtest, vettori, ABI, frontend, gitleaks), Kani 5/5
-VERIFIED, Halmos HALMOS_SUMMARY. Nessun test saltato. Versioni degli strumenti registrate.
+VERIFIED, Halmos 9/9 (4 in locale, tutti e 9 in CI). Nessun test saltato. Versioni degli strumenti registrate.
 
 ## 2. Test aggiunti
 
@@ -43,7 +43,7 @@ proprietà economica critica (I1–I6, conservazione, fee, sweep, solvenza, auto
 ha almeno un test positivo e uno avversariale. Oracoli: modello Python per la matematica,
 invarianti della specifica per le proprietà, rifiuto più stato invariato per gli attacchi
 (fase 24). Verifica formale: Kani (5 harness su `bernie-state`) e Halmos (9 harness su
-`BernieMath`) HALMOS_SUMMARY.
+`BernieMath`), tutti verificati in CI sul commit `430808f`.
 
 ## 4. Campagne di fuzzing (state machine)
 
@@ -151,7 +151,7 @@ excess) e lo confronta con il totale iniziale. Nessun denaro creato, distrutto o
 - **Coverage del programma SBF** non misurabile con llvm-cov (vedi §9).
 - **Precedenza degli errori** non fissata dalla specifica: l'oracolo accetta un insieme di
   errori quando più condizioni valgono insieme (Q-1).
-- **Kani `mint_canonical_or_error`** richiede 2 191 s in locale, contro un timeout CI di 45 minuti.
+- **Kani `mint_canonical_or_error`** richiede 25 minuti in CI (2 191 s in locale) su un timeout di 45: margine da tenere d'occhio se la matematica cresce.
 - **Domini numerici**: importi oltre u64 (Solana) o uint256 (EVM) sono fuori dominio; il modello
   illimitato dà Slippage dove la chain dà Overflow/Panic, e il confronto accetta entrambi.
 - **Cloni EVM**: chiunque può clonare l'implementazione con parametri non validati; la tesoreria
