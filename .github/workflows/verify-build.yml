@@ -25,7 +25,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/solana-verify
-          key: solana-verify-0.5.2
+          key: ${{ runner.os }}-cargo-bin-solana-verify-0.5.2
       - name: solana-verify 0.5.2
         run: command -v solana-verify || cargo install solana-verify --version 0.5.2 --locked
       - name: Build nell'immagine solana-verifiable-build 4.1.0
