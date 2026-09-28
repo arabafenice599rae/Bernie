@@ -6,8 +6,10 @@
 <title>Bernie</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&family=Doto:wght@700&family=Permanent+Marker&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<!-- font non bloccanti: la pagina si disegna subito con il font di sistema -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&family=Permanent+Marker&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&family=Permanent+Marker&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&family=Permanent+Marker&display=swap"></noscript>
 <style>/* ── Bernie · vetro sospeso, verde e blu ─────────────────── */
 :root{
   color-scheme:dark;
@@ -192,6 +194,13 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 .stats3 b{ display:block; margin-top:6px; font-size:20px; font-weight:600; letter-spacing:-.02em; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 @media (max-width:380px){ .stats3 > div{ padding:12px 11px 13px } .stats3 b{ font-size:17px } }
 
+/* apri la pagina nel browser dell'app del wallet */
+.wopen{ margin:14px 0 4px; display:grid; gap:8px }
+.wbtn{ display:flex; align-items:center; gap:10px; height:50px; padding:0 18px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  color:#fff; font-weight:600; text-decoration:none }
+.wbtn:first-of-type{ background:#D9FF3E; color:#0B0B0B; border-color:transparent }
+.wbtn .ico{ width:18px; height:18px }
+
 /* pannello importo */
 .quick{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap }
 .quick button{ flex:1; min-width:64px; height:40px; border-radius:999px; border:1px solid var(--glass-edge); background:var(--glass-hi); font-weight:700; font-size:14px; color:var(--ink2); box-shadow:0 1px 0 rgba(255,255,255,.8) inset }
@@ -235,7 +244,7 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 .derive{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px }
 .derive > div{ border-radius:999px; padding:12px 8px; text-align:center; background:var(--glass-hi); border:1px solid var(--glass-edge); box-shadow:0 1px 0 rgba(255,255,255,.85) inset }
 .derive small{ display:block; font-size:11.5px; color:var(--ink3); font-weight:700 }
-.derive b{ font-family:var(--dots); font-weight:700; font-size:20px; color:#0F5F66 }
+.derive b{ font-weight:600; font-size:20px; letter-spacing:-.02em; color:#0F5F66 }
 .field{ margin-top:6px } .field .inp input{ font-size:18px; font-weight:500; letter-spacing:0 }
 .createcost{ margin-top:12px; text-align:center } .createcost.bad{ color:var(--bad) }
 .createnote{ margin-top:18px }
@@ -517,6 +526,7 @@ html{ background:#000 }
   <div class="row"><h2 data-i18n="wallet.title">Wallet</h2><button class="chip on" id="walletClose" data-i18n="faq.close">Chiudi</button></div>
   <div class="wrow"><span class="ch sol">SOL</span><div class="wl"><b>Solana</b><small id="wSol"></small></div><button class="chip" id="wSolBtn"></button></div>
   <div class="wrow"><span class="ch rh">RH</span><div class="wl"><b>Robinhood Chain</b><small id="wRh"></small></div><button class="chip" id="wRhBtn"></button></div>
+  <div id="wOpen" class="wopen hide"></div>
   <div id="wHoldBox" class="hide"><div class="sectlbl" data-i18n="wallet.hold">I tuoi token</div><div class="list pf" id="wHold"></div></div>
 </div>
 <div class="sheet" id="settings">
@@ -545,7 +555,13 @@ html{ background:#000 }
 <script>
 (() => {
 'use strict';
-const W = window.solanaWeb3 || null;          // serve solo per Solana live
+let W = window.solanaWeb3 || null;            // web3.js: caricato solo per Solana live (vedi loadWeb3)
+const WEB3_URL = 'https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js';
+let web3P = null;
+const loadWeb3 = () => W ? Promise.resolve(W) : (web3P ||= new Promise((ok, ko) => {
+  const sc = document.createElement('script'); sc.src = WEB3_URL; sc.async = true; sc.crossOrigin = 'anonymous';
+  sc.onload = () => { W = window.solanaWeb3 || null; W ? ok(W) : ko(new Error('web3.js')); }; sc.onerror = () => { web3P = null; ko(new Error('web3.js')); };
+  document.head.appendChild(sc); }));
 const $ = s => document.querySelector(s);
 
 /* ===================== MATEMATICA RESIDUAL PEG v1.4 (identica al modello di riferimento) ===================== */
@@ -648,6 +664,13 @@ const store = {
 };
 let cfg = Object.assign({ rpc:'https://api.devnet.solana.com', program:'', treasury:'', priority:1000, net:'devnet',
   evmRpc:'https://rpc.testnet.chain.robinhood.com', factory:'', chainId:46630, fromBlock:0, explorer:'', slip:100 }, store.get('cfg', {}));
+// ?net=devnet, ?net=testnet o entrambi: applica i preset pubblici e li salva. Il browser interno
+// di un wallet ha un localStorage suo: il link che lo apre porta con sé la rete scelta qui.
+try {
+  const nets = (new URLSearchParams(location.search).get('net') || '').split(',').map(x => x.trim()).filter(x => PRESETS[x]);
+  if (nets.length){ for (const n of nets) Object.assign(cfg, PRESETS[n]); store.set('cfg', cfg); }
+} catch {}
+const netsInUse = () => [cfg.program && cfg.program === PRESETS.devnet.program && 'devnet', cfg.factory && cfg.factory.toLowerCase() === PRESETS.testnet.factory.toLowerCase() && 'testnet'].filter(Boolean);
 
 /* ===================== i18n (IT, EN) ===================== */
 const LANGS = [['it','IT','it-IT'], ['en','EN','en-US']];
@@ -679,7 +702,7 @@ it: {
  'lbl.create':'Creazione token', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donazione', 'lbl.claim':'Ritiro fee', 'lbl.sweep':'Ritiro excess',
  'chain.all':'Tutte', 'wallet.title':'Wallet', 'wallet.connectOne':'Collega', 'wallet.disconnect':'Scollega', 'wallet.none':'non collegato', 'wallet.demo':'demo · saldo {b}',
  'tre.title':'Tesoreria', 'tre.total':'Fee del protocollo da ritirare', 'tre.on':'su {n} token', 'tre.none':'Nessuna fee da ritirare', 'btn.claimAll':'Ritira tutto', 'lbl.claimAll':'Ritiro fee della tesoreria', 'own.title':'Creatore', 'own.fees':'Fee da ritirare', 'own.excess':'Excess ritirabile (fee e resti)', 'btn.claim':'Ritira', 'btn.sweep':'Ritira', 'btn.close':'Chiudi',
- 'pf.title':'Il tuo wallet', 'pf.count':'{n} token', 'pf.empty':'Nessun token Bernie in questo wallet.', 'pf.exit':'se esci ora {x}', 'pf.native':'{x} disponibili', 'wallet.hold':'I tuoi token', 'act.title':'Attività', 'act.more':'Mostra altro', 'act.none':'Nessuna operazione.',
+ 'pf.title':'Il tuo wallet', 'pf.count':'{n} token', 'pf.empty':'Nessun token Bernie in questo wallet.', 'pf.exit':'se esci ora {x}', 'pf.native':'{x} disponibili', 'wallet.hold':'I tuoi token', 'wallet.openIn':'Nessun wallet {c} in questo browser. Apri Bernie direttamente nell\'app del wallet:', 'wallet.openApp':'Apri in {w}', 'wallet.install':'Nessun wallet {c} in questo browser. Installa l\'estensione, poi ricarica la pagina:', 'wallet.get':'Scarica {w}', 'act.title':'Attività', 'act.more':'Mostra altro', 'act.none':'Nessuna operazione.',
  'ev.mint':'Mint', 'ev.redeem':'Redeem', 'ev.donate':'Donazione', 'ev.create':'Creato', 'ev.createdAt':'a {v}',
  errs: { ZeroAmount:'quantità zero', ExceedsSupply:'oltre la supply', Dust:'quantità troppo piccola', ZeroPayout:'incasso nullo', Slippage:'prezzo cambiato oltre la tolleranza', NoHolders:'nessun holder',
    NotEmpty:'supply non zero', PenaltyOutOfRange:'penalità fuori dai limiti', PriceOutOfRange:'prezzo fuori dai limiti', Overflow:'overflow', InvariantViolated:'invariante violato', NothingToClaim:'niente da ritirare',
@@ -739,7 +762,7 @@ en: {
  'lbl.create':'Token creation', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donation', 'lbl.claim':'Fee claim', 'lbl.sweep':'Excess claim',
  'chain.all':'All', 'wallet.title':'Wallet', 'wallet.connectOne':'Connect', 'wallet.disconnect':'Disconnect', 'wallet.none':'not connected', 'wallet.demo':'demo · balance {b}',
  'tre.title':'Treasury', 'tre.total':'Protocol fees to claim', 'tre.on':'across {n} tokens', 'tre.none':'No fees to claim', 'btn.claimAll':'Claim all', 'lbl.claimAll':'Treasury fee claim', 'own.title':'Creator', 'own.fees':'Fees to claim', 'own.excess':'Claimable excess (fees and remainders)', 'btn.claim':'Claim', 'btn.sweep':'Claim', 'btn.close':'Close',
- 'pf.title':'Your wallet', 'pf.count':'{n} tokens', 'pf.empty':'No Bernie tokens in this wallet.', 'pf.exit':'if you exit now {x}', 'pf.native':'{x} available', 'wallet.hold':'Your tokens', 'act.title':'Activity', 'act.more':'Show more', 'act.none':'No operations.',
+ 'pf.title':'Your wallet', 'pf.count':'{n} tokens', 'pf.empty':'No Bernie tokens in this wallet.', 'pf.exit':'if you exit now {x}', 'pf.native':'{x} available', 'wallet.hold':'Your tokens', 'wallet.openIn':'No {c} wallet in this browser. Open Bernie directly in your wallet app:', 'wallet.openApp':'Open in {w}', 'wallet.install':'No {c} wallet in this browser. Install the extension, then reload:', 'wallet.get':'Get {w}', 'act.title':'Activity', 'act.more':'Show more', 'act.none':'No operations.',
  'ev.mint':'Mint', 'ev.redeem':'Redeem', 'ev.donate':'Donation', 'ev.create':'Created', 'ev.createdAt':'at {v}',
  errs: { ZeroAmount:'zero amount', ExceedsSupply:'exceeds supply', Dust:'amount too small', ZeroPayout:'zero payout', Slippage:'price moved beyond tolerance', NoHolders:'no holders',
    NotEmpty:'supply not zero', PenaltyOutOfRange:'penalty out of range', PriceOutOfRange:'price out of range', Overflow:'overflow', InvariantViolated:'invariant violated', NothingToClaim:'nothing to claim',
@@ -791,13 +814,11 @@ function applyLang(){
 }
 
 /* ===================== FORMATTAZIONE ===================== */
-function unitFor(chain, nano){
-  const C = CHAINS[chain]; const n = Number(nano) / Number(C.den) / 1e9;
-  if (n === 0 || n >= (chain === 'rh' ? 1e-4 : 1e-6)) return { unit: C.unit, den: C.den * NANO };
-  if (chain === 'sol') return { unit: 'lamport', den: NANO };
-  return n >= 1e-9 ? { unit: 'gwei', den: NANO * NANO } : { unit: 'wei', den: NANO };
-}
-const numStr = v => v === 0 ? '0' : v >= 1000 ? v.toLocaleString(LOCALE(), { maximumFractionDigits: 0 }) : v.toLocaleString(LOCALE(), { maximumSignificantDigits: 4 });
+// Sempre nell'unità della chain (SOL, ETH): niente lamport, gwei o wei.
+function unitFor(chain){ const C = CHAINS[chain]; return { unit: C.unit, den: C.den * NANO }; }
+// Decimali pieni anche per prezzi minuscoli (0,000001007): niente notazione a pedice, che nel
+// titolo grande si confonderebbe con una cifra normale.
+const numStr = v => !v || !isFinite(v) ? '0' : Math.abs(v) >= 1000 ? v.toLocaleString(LOCALE(), { maximumFractionDigits: 0 }) : v.toLocaleString(LOCALE(), { maximumSignificantDigits: 4, maximumFractionDigits: 20 });
 function fmtAmt(chain, nano){ const u = unitFor(chain, nano); return numStr(Number(nano) / Number(u.den)) + ' ' + u.unit; }
 const fmtNat = (chain, x) => fmtAmt(chain, BigInt(x) * NANO);          // importo nativo (lamport o wei)
 const priceNano = tk => tk.s.k * NANO;                                  // k coincide col prezzo di 1 token in unità native
@@ -843,10 +864,12 @@ demoBal = demoBal ? { sol: BigInt(demoBal.sol), rh: BigInt(demoBal.rh) } : { sol
 const saveDemoBal = () => store.set('demoBal', { sol: demoBal.sol.toString(), rh: demoBal.rh.toString() });
 function applyCfg(){
   treasuryEvm = null;
+  if (cfg.program && !W){ loadWeb3().then(() => { applyCfg(); loadTokens(); }).catch(() => toast('web3.js', 'bad')); }
   programId = null; treasuries = [];
   if (W && cfg.program){ try { programId = new W.PublicKey(cfg.program); conn = new W.Connection(cfg.rpc, 'confirmed'); } catch { programId = null; } }
   if (W && programId){ try { treasuries = String(cfg.treasury).split(/[\s,]+/).filter(Boolean).map(x => new W.PublicKey(x)); } catch { treasuries = []; } }
-  demo = !programId && !/^0x[0-9a-fA-F]{40}$/.test(cfg.factory || '');
+  // demo solo se nessuna rete è configurata: con Solana live web3.js può arrivare dopo
+  demo = !cfg.program && !/^0x[0-9a-fA-F]{40}$/.test(cfg.factory || '');
 }
 const hasSol = () => !!programId, hasEvm = () => /^0x[0-9a-fA-F]{40}$/.test(cfg.factory || '');
 const connected = chain => chain === 'sol' ? !!pubkey : !!evmAddr;
@@ -1072,9 +1095,17 @@ async function loadEvm(){
 }
 async function historyEvm(tk){
   try {
-    const logs = await erpc('eth_getLogs', [{ address: tk.mint, fromBlock: hex(cfg.fromBlock || 0), toBlock: 'latest' }]);
-    const blocks = [...new Set(logs.map(l => l.blockNumber))].slice(-150); const times = {};
-    if (blocks.length){ const bs = await ecalls(blocks.map(b => ({ m: 'eth_getBlockByNumber', params: [b, false] }))); bs.forEach(b => { if (b) times[b.number] = Number(BigInt(b.timestamp)); }); }
+    // cache per token: log già letti e timestamp dei blocchi; si chiedono solo i blocchi nuovi
+    const key = 'hlog:' + cfg.chainId + ':' + tk.mint.toLowerCase(), c = store.get(key, null) || { logs: [], next: hex(cfg.fromBlock || 0), times: {} };
+    const head = await erpc('eth_blockNumber', []);
+    if (BigInt(c.next) <= BigInt(head)){
+      const fresh = await erpc('eth_getLogs', [{ address: tk.mint, fromBlock: c.next, toBlock: head }]);
+      c.logs.push(...fresh.map(l => ({ blockNumber: l.blockNumber, topics: l.topics, data: l.data })));
+      const need = [...new Set(fresh.map(l => l.blockNumber))].filter(b => !c.times[b]).slice(-150);
+      if (need.length){ const bs = await ecalls(need.map(b => ({ m: 'eth_getBlockByNumber', params: [b, false] }))); bs.forEach(b => { if (b) c.times[b.number] = Number(BigInt(b.timestamp)); }); }
+      c.next = hex(BigInt(head) + 1n); store.set(key, c);
+    }
+    const logs = c.logs, times = c.times;
     const events = [{ tag: TAG.create, amt: tk.k0, u: 0n, time: times[logs[0]?.blockNumber] || 0, who: tk.creator, k: tk.k0 }];
     let op = null, k = tk.k0;
     for (const l of logs){ const t0 = l.topics[0], tm = times[l.blockNumber] || 0, who = l.topics[1] ? '0x' + l.topics[1].slice(26) : '';
@@ -1102,20 +1133,34 @@ async function loadTokens(){
   if (demo){ if (!tokens.length) tokens = demoTokens(); }
   else {
     const prev = Object.fromEntries(tokens.map(tk => [tk.mint, tk])); const next = [];
-    if (hasSol()){ try { for (const tk of await loadSol()) next.push({ ...tk, history: prev[tk.mint]?.history, k0: prev[tk.mint]?.k0 }); } catch (e) { console.error(e); toast('Solana RPC: ' + escapeHtml(e.message), 'bad'); } }
-    if (hasEvm()){ try { for (const tk of await loadEvm()) next.push({ ...tk, history: prev[tk.mint]?.history }); } catch (e) { console.error(e); toast('Robinhood RPC: ' + escapeHtml(e.message), 'bad'); } }
-    tokens = next;
+    const keep = tk => { const o = prev[tk.mint]; return { ...tk, history: o?.history, k0: tk.k0 ?? o?.k0, createdAt: o?.createdAt, lastActivity: o?.lastActivity, sig: o?.sig }; };
+    const [sol, evm] = await Promise.all([
+      hasSol() ? loadSol().catch(e => { console.error(e); toast('Solana RPC: ' + escapeHtml(e.message), 'bad'); return []; }) : [],
+      hasEvm() ? loadEvm().catch(e => { console.error(e); toast('Robinhood RPC: ' + escapeHtml(e.message), 'bad'); return []; }) : []]);
+    tokens = [...sol, ...evm].map(keep);
   }
   await loadBalances();
   if (!current || !tokens.find(x => x.mint === current)) current = sorted()[0]?.mint || null;
   renderAll(); if (!demo) hydrate();
 }
+// Storico: si ricarica solo per i token il cui stato è cambiato (firma k, S, R, Q, saldo),
+// il token aperto per primo, al massimo 4 richieste insieme, un solo rendering per giro.
+let hydrating = false;
 async function hydrate(){
-  for (const tk of [...tokens]){ if (!tokens.includes(tk)) continue;
-    const h = tk.chain === 'sol' ? await historySol(tk) : await historyEvm(tk);
-    tk.history = h; if (h.k0) tk.k0 = h.k0; tk.createdAt = h.events[0]?.time; tk.lastActivity = h.events[h.events.length - 1]?.time;
-    if (tk.mint === current || !detailOpen) renderAll(); }
+  if (hydrating) return; hydrating = true;
+  try {
+    const sigOf = tk => [tk.s.k, tk.s.S, tk.s.R, tk.s.Q, tk.s.bal].join(':');
+    const todo = tokens.filter(tk => !tk.history || tk.sig !== sigOf(tk)).sort((a, b) => (b.mint === current) - (a.mint === current));
+    let changed = false;
+    const one = async tk => { const h = tk.chain === 'sol' ? await historySol(tk) : await historyEvm(tk);
+      tk.history = h; tk.sig = sigOf(tk); if (h.k0) tk.k0 = h.k0; tk.createdAt = h.events[0]?.time; tk.lastActivity = h.events[h.events.length - 1]?.time; changed = true;
+      if (tk.mint === current) renderSoon(); };
+    for (let i = 0; i < todo.length; i += 4) await Promise.all(todo.slice(i, i + 4).map(one));
+    if (changed) renderSoon();
+  } finally { hydrating = false; }
 }
+let renderQ = 0;
+const renderSoon = () => { if (!renderQ) renderQ = requestAnimationFrame(() => { renderQ = 0; renderAll(); }); };
 async function loadBalances(){
   balances = {}; nativeBal = { sol: null, rh: null };
   if (demo){ tokens.forEach(tk => { const me = meOn(tk.chain); if (me) balances[tk.mint] = tk.holders[me] || 0n; });
@@ -1163,11 +1208,13 @@ function renderChart(box, tk, animate){
   let pts = all;
   if (span){ const from = now - span, prev = all.filter(p => p.t <= from).pop(); pts = [...(prev ? [{ ...prev, t: from, tag: -2 }] : []), ...all.filter(p => p.t > from)]; }
   const W = Math.max(260, Math.round(box.clientWidth || 480)), H = matchMedia('(min-width: 980px)').matches ? 250 : 200;
-  const R = 62, T = 12, B = 24, pw = W - R, ph = H - T - B;
+  const T = 12, B = 24, ph = H - T - B;
   const uu = unitFor(tk.chain, tk.s.k * NANO), val = k => Number(k * NANO) / Number(uu.den);
   const vs = pts.map(p => val(p.k)), base = tk.k0 ? val(tk.k0) : null;
   let lo = Math.min(...vs), hi = Math.max(...vs); if (base != null && !span) lo = Math.min(lo, base);
   const pad = (hi - lo) * 0.2 || Math.abs(hi) * 0.01 || 1; lo -= pad; hi += pad;
+  // colonna delle quote larga quanto l'etichetta più lunga (prezzi con molti decimali)
+  const R = Math.min(130, Math.max(62, 18 + 6.6 * Math.max(...[...niceTicks(lo, hi, 3), vs[vs.length - 1]].map(v => numStr(v).length)))), pw = W - R;
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
   const X = (p, i) => useTime ? (t1 > t0 ? pw * (p.t - t0) / (t1 - t0) : pw) : (pts.length === 1 ? pw : pw * i / (pts.length - 1));
   const Y = v => T + ph * (1 - (v - lo) / (hi - lo));
@@ -1299,7 +1346,7 @@ const shown = {};
 function tween(el, to, den, kind){
   const v = Number(to) / Number(den), from = shown[el.id] ?? v; shown[el.id] = v;
   const fmt = kind === 'eur' ? (x => x.toLocaleString(LOCALE(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }))
-    : (x => v >= 1000 ? x.toLocaleString(LOCALE(), { maximumFractionDigits: 0 }) : v >= 1 ? x.toLocaleString(LOCALE(), { maximumFractionDigits: 4 }) : x.toLocaleString(LOCALE(), { maximumSignificantDigits: 4 }));
+    : (x => v >= 1000 ? x.toLocaleString(LOCALE(), { maximumFractionDigits: 0 }) : v >= 1 ? x.toLocaleString(LOCALE(), { maximumFractionDigits: 4 }) : numStr(x));
   if (from === v || matchMedia('(prefers-reduced-motion: reduce)').matches){ el.textContent = fmt(v); fitBig(); return; }
   const t0 = performance.now(), dur = 650; cancelAnimationFrame(el._raf);
   el.classList.remove('bump'); void el.offsetWidth; if (v > from) el.classList.add('bump');
@@ -1404,8 +1451,8 @@ function setWalletUi(){
 const pfFlash = () => { const c = $('#pfCard'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); };
 async function connectSol(){
   if (demo){ pubkey = { toBase58: () => DEMO_SOL, equals: () => false }; setWalletUi(); await loadBalances(); renderAll(); pfFlash(); return; }
-  if (!W){ toast('web3.js', 'bad'); return; }
-  const p = findSolProvider(); if (!p){ toast(t('toast.noWallet'), 'bad'); return; }
+  const p = findSolProvider(); if (!p){ openInWallet('sol'); return; }
+  try { await loadWeb3(); } catch { toast('web3.js', 'bad'); return; }
   try { const r = await p.connect(); solWallet = p; pubkey = new W.PublicKey((r?.publicKey || p.publicKey).toString()); setWalletUi();
     p.on?.('disconnect', () => { solWallet = null; pubkey = null; setWalletUi(); loadBalances().then(renderAll); });
     await loadBalances(); renderAll(); pfFlash();
@@ -1413,7 +1460,7 @@ async function connectSol(){
 }
 async function connectEvm(){
   if (demo){ evmAddr = DEMO_EVM; setWalletUi(); await loadBalances(); renderAll(); pfFlash(); return; }
-  const eth = window.ethereum; if (!eth){ toast(t('toast.noEvmWallet'), 'bad'); return; }
+  const eth = window.ethereum; if (!eth){ openInWallet('rh'); return; }
   try {
     const [addr] = await eth.request({ method: 'eth_requestAccounts' });
     const cid = Number(BigInt(await eth.request({ method: 'eth_chainId' })));
@@ -1428,6 +1475,22 @@ async function connectEvm(){
 }
 function disconnect(chain){ if (chain === 'sol'){ solWallet?.disconnect?.(); solWallet = null; pubkey = null; } else evmAddr = null; setWalletUi(); loadBalances().then(renderAll); }
 const connectFor = chain => chain === 'sol' ? connectSol() : connectEvm();
+// Senza wallet nel browser: link universali che aprono questa pagina nel browser dell'app del
+// wallet (con la rete in uso nell'URL). Da desktop gli stessi link portano alla pagina del wallet.
+const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+function pageUrl(){ const u = new URL(location.href); u.hash = ''; const n = netsInUse(); if (n.length) u.searchParams.set('net', n.join(',')); else u.searchParams.delete('net'); return u.toString(); }
+const WALLETS = {
+  sol: [['Phantom', u => `https://phantom.app/ul/browse/${encodeURIComponent(u)}?ref=${encodeURIComponent(location.origin)}`, 'https://phantom.com/download'],
+        ['Solflare', u => `https://solflare.com/ul/v1/browse/${encodeURIComponent(u)}?ref=${encodeURIComponent(location.origin)}`, 'https://solflare.com/download']],
+  rh:  [['MetaMask', u => `https://metamask.app.link/dapp/${u.replace(/^https?:\/\//, '')}`, 'https://metamask.io/download/'],
+        ['Coinbase Wallet', u => `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(u)}`, 'https://www.coinbase.com/wallet/downloads']]
+};
+function openInWallet(chain){
+  const box = $('#wOpen'), u = pageUrl(), mob = isMobile();
+  box.innerHTML = `<p class="neutral" style="margin:0 0 10px">${t(mob ? 'wallet.openIn' : 'wallet.install', { c: CHAINS[chain].name })}</p>` +
+    WALLETS[chain].map(([name, link, dl]) => `<a class="wbtn" href="${escapeHtml(mob ? link(u) : dl)}" ${mob ? '' : 'target="_blank" rel="noopener"'}>${ICON.ext}<span>${t(mob ? 'wallet.openApp' : 'wallet.get', { w: name })}</span></a>`).join('');
+  box.classList.remove('hide'); openSheet('#walletSheet');
+}
 
 /* ===================== AZIONI ===================== */
 const slipUp = x => x * (10000n + BigInt(cfg.slip)) / 10000n, slipDown = x => x * (10000n - BigInt(cfg.slip)) / 10000n;
@@ -1543,7 +1606,7 @@ $('#btnRef').addEventListener('click', () => { $('#penP').value = 200; $('#penE'
 $('#btnCreate').addEventListener('click', create);
 const openSheet = id => { $('#scrim').classList.add('open'); $(id).scrollTop = 0; $(id).classList.add('open'); };
 const closeSheets = () => { $('#scrim').classList.remove('open'); document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); };
-$('#btnWallet').addEventListener('click', () => { setWalletUi(); openSheet('#walletSheet'); });
+$('#btnWallet').addEventListener('click', () => { setWalletUi(); $('#wOpen').classList.add('hide'); openSheet('#walletSheet'); });
 $('#walletClose').addEventListener('click', closeSheets);
 $('#wSolBtn').addEventListener('click', async () => { if (pubkey) disconnect('sol'); else await connectSol(); setWalletUi(); });
 $('#wRhBtn').addEventListener('click', async () => { if (evmAddr) disconnect('rh'); else await connectEvm(); setWalletUi(); });
