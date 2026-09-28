@@ -646,9 +646,11 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 - [ ] Probe TSTORE su testnet 46630 e misura delle CU su devnet.
 - [ ] Indirizzi reali di tesoreria (N per Solana): vault del multisig Squads, rent-exempt.
 - [x] `security.txt` nel programma Solana: contatti via GitHub Private vulnerability reporting, policy `SECURITY.md`, nessun audit esterno (link al pre-audit).
+- [x] Build riproducibile su devnet: `solana-verify build` nell'immagine `solanafoundation/solana-verifiable-build:4.1.0` dal commit `7ccd3d5` dà lo stesso binario del programma deployato (SHA-256 del file `355e9abc…`, hash eseguibile `adcf1389…`). Si ripete con il workflow manuale «Build verificabile». Il badge «verified» degli explorer esiste solo su mainnet: il servizio remoto di OtterSec non accetta altri cluster.
+- [x] Contratti EVM verificati su Blockscout (testnet 46630): `BernieFactory` e l'implementazione `Bernie`, bytecode identico alla build del repo; i token sono cloni dell'implementazione.
 - [ ] Build verificata su mainnet: build riproducibile con `solana-verify` (Docker) dal commit del deploy, hash confrontato con il programma on-chain, verifica caricata con la firma dell'upgrade authority. Va fatta **prima** di revocare l'autorità.
 - [ ] Ogni upgrade firmato solo dopo il confronto hash del buffer / build e autorità del buffer (`frontend/upgrade.html`).
-- [ ] Upgrade authority revocata su Solana (o affidata al multisig); contratti EVM verificati sull'explorer.
+- [ ] Upgrade authority revocata su Solana (o affidata al multisig); contratti EVM verificati sull'explorer di mainnet.
 - [ ] Parere legale Italia/UE, più USA in caso di utenti americani.
 
 ## 18. Stato dell'arte

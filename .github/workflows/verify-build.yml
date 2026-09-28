@@ -1,0 +1,39 @@
+name: Build verificabile
+
+# Ricostruisce il programma Solana nell'immagine Docker ufficiale di solana-verify e confronta
+# l'hash con il programma deployato. Solo a mano: il programma on-chain cambia solo con un upgrade.
+on:
+  workflow_dispatch:
+    inputs:
+      rpc:
+        description: "RPC del cluster"
+        default: "https://api.devnet.solana.com"
+      program:
+        description: "Program ID"
+        default: "8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: solana-verify contro il programma on-chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/solana-verify
+          key: ${{ runner.os }}-cargo-bin-solana-verify-0.5.2
+      - name: solana-verify 0.5.2
+        run: command -v solana-verify || cargo install solana-verify --version 0.5.2 --locked
+      - name: Build nell'immagine solana-verifiable-build 4.1.0
+        # percorso assoluto: con un percorso relativo Docker monterebbe un volume con quel nome
+        run: solana-verify build --library-name bernie_program --base-image solanafoundation/solana-verifiable-build:4.1.0 "$GITHUB_WORKSPACE/solana"
+      - name: Confronto degli hash
+        run: |
+          local_hash=$(solana-verify get-executable-hash solana/target/deploy/bernie_program.so)
+          chain_hash=$(solana-verify get-program-hash -u "${{ inputs.rpc }}" "${{ inputs.program }}")
+          { echo "| | hash |"; echo "|---|---|"; echo "| build | \`$local_hash\` |"; echo "| on-chain | \`$chain_hash\` |"; } >> "$GITHUB_STEP_SUMMARY"
+          test "$local_hash" = "$chain_hash"
