@@ -526,6 +526,7 @@ html{ background:#000 }
   <div class="row"><h2 data-i18n="wallet.title">Wallet</h2><button class="chip on" id="walletClose" data-i18n="faq.close">Chiudi</button></div>
   <div class="wrow"><span class="ch sol">SOL</span><div class="wl"><b>Solana</b><small id="wSol"></small></div><button class="chip" id="wSolBtn"></button></div>
   <div class="wrow"><span class="ch rh">RH</span><div class="wl"><b>Robinhood Chain</b><small id="wRh"></small></div><button class="chip" id="wRhBtn"></button></div>
+  <p id="wNetHint" class="neutral hide" style="margin:10px 0 0"></p>
   <div id="wOpen" class="wopen hide"></div>
   <div id="wHoldBox" class="hide"><div class="sectlbl" data-i18n="wallet.hold">I tuoi token</div><div class="list pf" id="wHold"></div></div>
 </div>
@@ -702,7 +703,7 @@ it: {
  'lbl.create':'Creazione token', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donazione', 'lbl.claim':'Ritiro fee', 'lbl.sweep':'Ritiro excess',
  'chain.all':'Tutte', 'wallet.title':'Wallet', 'wallet.connectOne':'Collega', 'wallet.disconnect':'Scollega', 'wallet.none':'non collegato', 'wallet.demo':'demo · saldo {b}',
  'tre.title':'Tesoreria', 'tre.total':'Fee del protocollo da ritirare', 'tre.on':'su {n} token', 'tre.none':'Nessuna fee da ritirare', 'btn.claimAll':'Ritira tutto', 'lbl.claimAll':'Ritiro fee della tesoreria', 'own.title':'Creatore', 'own.fees':'Fee da ritirare', 'own.excess':'Excess ritirabile (fee e resti)', 'btn.claim':'Ritira', 'btn.sweep':'Ritira', 'btn.close':'Chiudi',
- 'pf.title':'Il tuo wallet', 'pf.count':'{n} token', 'pf.empty':'Nessun token Bernie in questo wallet.', 'pf.exit':'se esci ora {x}', 'pf.native':'{x} disponibili', 'wallet.hold':'I tuoi token', 'wallet.openIn':'Nessun wallet {c} in questo browser. Apri Bernie direttamente nell\'app del wallet:', 'wallet.openApp':'Apri in {w}', 'wallet.install':'Nessun wallet {c} in questo browser. Installa l\'estensione, poi ricarica la pagina:', 'wallet.get':'Scarica {w}', 'act.title':'Attività', 'act.more':'Mostra altro', 'act.none':'Nessuna operazione.',
+ 'pf.title':'Il tuo wallet', 'pf.count':'{n} token', 'pf.empty':'Nessun token Bernie in questo wallet.', 'pf.exit':'se esci ora {x}', 'pf.native':'{x} disponibili', 'wallet.hold':'I tuoi token', 'wallet.openIn':'Nessun wallet {c} in questo browser. Apri Bernie direttamente nell\'app del wallet:', 'wallet.openApp':'Apri in {w}', 'wallet.devnetHint':'Bernie è su Solana {n}. In Phantom attiva Impostazioni → Impostazioni sviluppatore → Modalità testnet → Solana Devnet: altrimenti Phantom simula su mainnet e segnala «SOL insufficienti».', 'wallet.install':'Nessun wallet {c} in questo browser. Installa l\'estensione, poi ricarica la pagina:', 'wallet.get':'Scarica {w}', 'act.title':'Attività', 'act.more':'Mostra altro', 'act.none':'Nessuna operazione.',
  'ev.mint':'Mint', 'ev.redeem':'Redeem', 'ev.donate':'Donazione', 'ev.create':'Creato', 'ev.createdAt':'a {v}',
  errs: { ZeroAmount:'quantità zero', ExceedsSupply:'oltre la supply', Dust:'quantità troppo piccola', ZeroPayout:'incasso nullo', Slippage:'prezzo cambiato oltre la tolleranza', NoHolders:'nessun holder',
    NotEmpty:'supply non zero', PenaltyOutOfRange:'penalità fuori dai limiti', PriceOutOfRange:'prezzo fuori dai limiti', Overflow:'overflow', InvariantViolated:'invariante violato', NothingToClaim:'niente da ritirare',
@@ -762,7 +763,7 @@ en: {
  'lbl.create':'Token creation', 'lbl.mint':'Mint', 'lbl.redeem':'Redeem', 'lbl.donate':'Donation', 'lbl.claim':'Fee claim', 'lbl.sweep':'Excess claim',
  'chain.all':'All', 'wallet.title':'Wallet', 'wallet.connectOne':'Connect', 'wallet.disconnect':'Disconnect', 'wallet.none':'not connected', 'wallet.demo':'demo · balance {b}',
  'tre.title':'Treasury', 'tre.total':'Protocol fees to claim', 'tre.on':'across {n} tokens', 'tre.none':'No fees to claim', 'btn.claimAll':'Claim all', 'lbl.claimAll':'Treasury fee claim', 'own.title':'Creator', 'own.fees':'Fees to claim', 'own.excess':'Claimable excess (fees and remainders)', 'btn.claim':'Claim', 'btn.sweep':'Claim', 'btn.close':'Close',
- 'pf.title':'Your wallet', 'pf.count':'{n} tokens', 'pf.empty':'No Bernie tokens in this wallet.', 'pf.exit':'if you exit now {x}', 'pf.native':'{x} available', 'wallet.hold':'Your tokens', 'wallet.openIn':'No {c} wallet in this browser. Open Bernie directly in your wallet app:', 'wallet.openApp':'Open in {w}', 'wallet.install':'No {c} wallet in this browser. Install the extension, then reload:', 'wallet.get':'Get {w}', 'act.title':'Activity', 'act.more':'Show more', 'act.none':'No operations.',
+ 'pf.title':'Your wallet', 'pf.count':'{n} tokens', 'pf.empty':'No Bernie tokens in this wallet.', 'pf.exit':'if you exit now {x}', 'pf.native':'{x} available', 'wallet.hold':'Your tokens', 'wallet.openIn':'No {c} wallet in this browser. Open Bernie directly in your wallet app:', 'wallet.openApp':'Open in {w}', 'wallet.devnetHint':'Bernie runs on Solana {n}. In Phantom enable Settings → Developer Settings → Testnet Mode → Solana Devnet: otherwise Phantom simulates on mainnet and reports "insufficient SOL".', 'wallet.install':'No {c} wallet in this browser. Install the extension, then reload:', 'wallet.get':'Get {w}', 'act.title':'Activity', 'act.more':'Show more', 'act.none':'No operations.',
  'ev.mint':'Mint', 'ev.redeem':'Redeem', 'ev.donate':'Donation', 'ev.create':'Created', 'ev.createdAt':'at {v}',
  errs: { ZeroAmount:'zero amount', ExceedsSupply:'exceeds supply', Dust:'amount too small', ZeroPayout:'zero payout', Slippage:'price moved beyond tolerance', NoHolders:'no holders',
    NotEmpty:'supply not zero', PenaltyOutOfRange:'penalty out of range', PriceOutOfRange:'price out of range', Overflow:'overflow', InvariantViolated:'invariant violated', NothingToClaim:'nothing to claim',
@@ -1446,6 +1447,9 @@ function setWalletUi(){
   $('#btnWallet').innerHTML = ICON.wallet + (!on.length ? t('wallet.connect') : on.length === 2 ? badge('sol') + ' ' + badge('rh') : badge(on[0]) + ' ' + short(on[0] === 'sol' ? meOn('sol') : evmAddr));
   $('#wSol').textContent = pubkey ? (demo ? t('wallet.demo', { b: fmtNat('sol', demoBal.sol) }) : pubkey.toBase58()) : t('wallet.none');
   $('#wRh').textContent = evmAddr ? (demo ? t('wallet.demo', { b: fmtNat('rh', demoBal.rh) }) : evmAddr) : t('wallet.none');
+  // Phantom e gli altri wallet simulano sulla rete scelta nell'app, non su quella della pagina
+  const hint = $('#wNetHint'), onDev = hasSol() && cfg.net !== 'mainnet-beta';
+  hint.classList.toggle('hide', !onDev); if (onDev) hint.textContent = t('wallet.devnetHint', { n: cfg.net || 'devnet' });
   $('#wSolBtn').textContent = t(pubkey ? 'wallet.disconnect' : 'wallet.connectOne'); $('#wRhBtn').textContent = t(evmAddr ? 'wallet.disconnect' : 'wallet.connectOne');
 }
 const pfFlash = () => { const c = $('#pfCard'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); };
