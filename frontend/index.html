@@ -156,7 +156,6 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 #tokCard .neutral{ color:rgba(255,255,255,.6) }
 .neutral{ font-size:12.5px; line-height:1.5; color:var(--ink3); margin:8px 0 0 }
 .neutral:empty{ display:none }
-.foot{ margin-top:12px; font-size:12.5px; color:rgba(255,255,255,.62) }
 /* grafico: disegnato alle dimensioni reali del contenitore, niente stiramenti */
 .cbox{ margin:18px 0 0 }
 .chead{ display:flex; justify-content:space-between; align-items:center; gap:10px }
@@ -192,6 +191,7 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 .stats3 > div + div{ border-left:1px solid rgba(255,255,255,.08) }
 .stats3 small{ display:block; font-size:12px; font-weight:500; line-height:1.25; color:rgba(255,255,255,.55) }
 .stats3 b{ display:block; margin-top:6px; font-size:20px; font-weight:600; letter-spacing:-.02em; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.stats3 em{ display:block; margin-top:3px; font-style:normal; font-size:11.5px; line-height:1.3; color:rgba(255,255,255,.45) }
 @media (max-width:380px){ .stats3 > div{ padding:12px 11px 13px } .stats3 b{ font-size:17px } }
 
 /* apri la pagina nel browser dell'app del wallet */
@@ -279,14 +279,14 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 .faqgrp{ margin:22px 0 2px; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3) }
 .fig{ margin:2px 0 12px; pointer-events:none; user-select:none }
 .fig .stats3{ margin:0 } .fig .stats3 > div{ opacity:.32 }
+.fig .stats3.hlall{ box-shadow:inset 0 0 0 1.5px #D9FF3E } .fig .stats3.hlall > div{ opacity:1 }
 .fig .stats3 > div.hl{ opacity:1; border-radius:22px; box-shadow:inset 0 0 0 1.5px #D9FF3E }
 .fig .seg.mini{ margin:0 } .fig .seg button{ height:38px; font-size:14px }
 .fig .box{ border-radius:20px; border:1px solid rgba(255,255,255,.08); background:linear-gradient(160deg, rgba(24,24,24,.9), rgba(8,8,8,.94)); padding:12px 14px }
-.fig .box .bar{ margin:4px 0 8px } .fig .box .foot{ margin:0 }
+.fig .box .bar{ margin:4px 0 8px }
 .fig .box.tok{ background:radial-gradient(80% 70% at 6% 100%, rgba(217,255,62,.10), transparent 64%), linear-gradient(160deg, rgba(24,24,24,.9), rgba(6,6,6,.94)); border-color:rgba(255,255,255,.1) }
 .fig .dim{ opacity:.32 } .fig .dim.neutral{ margin:0 0 10px }
 .fig .hlbox{ border-radius:16px; box-shadow:inset 0 0 0 1.5px #D9FF3E; padding:10px 12px }
-.fig .hlbox.foot{ font-size:14px; line-height:1.45; color:rgba(255,255,255,.88) }
 .fig .pv{ font-size:12px; color:rgba(255,255,255,.55); margin:0 0 10px } .fig .pv b{ display:block; margin-top:2px; font-size:20px; font-weight:600; color:#fff; letter-spacing:-.02em }
 .fig svg{ display:block; width:100%; height:auto }
 .fig .hlt{ color:#D9FF3E }
@@ -309,7 +309,7 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 
 /* dettaglio: i widget si assestano all'apertura */
 #viewDetail > .card, #viewDetail > .stats3{ animation:settle .55s cubic-bezier(.2,.9,.2,1) both }
-#viewDetail > :nth-child(3){ animation-delay:.05s } #viewDetail > :nth-child(4){ animation-delay:.1s } #viewDetail > :nth-child(5){ animation-delay:.15s }
+#viewDetail > :nth-child(3){ animation-delay:.05s } #viewDetail > :nth-child(4){ animation-delay:.1s } #viewDetail > :nth-child(5){ animation-delay:.15s } #viewDetail > :nth-child(6){ animation-delay:.2s }
 @keyframes settle{ from{ opacity:0; transform:translateY(14px) scale(.985) } to{ opacity:1; transform:none } }
 @media (prefers-reduced-motion: reduce){ #viewDetail > *{ animation:none !important } }
 .back{ margin:0 0 14px }
@@ -330,7 +330,7 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
   #viewDetail:not(.hide){ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(380px,1fr); gap:0 20px; align-items:start; grid-auto-flow:row dense }
   #viewDetail > .back{ grid-column:1 / -1; justify-self:start }
   #viewDetail > #tokCard, #viewDetail > .stats3, #viewDetail > #actCard{ grid-column:1 }
-  #viewDetail > #amtCard{ grid-column:2; grid-row:2 / span 3; position:sticky; top:20px }
+  #viewDetail > #amtCard{ grid-column:2; grid-row:2 / span 4; position:sticky; top:20px }
   #viewDetail > #ownerCard{ grid-column:2 }
   #viewCreate .card{ max-width:680px; margin-left:auto; margin-right:auto }
   .bottom{ display:none !important }
@@ -453,9 +453,9 @@ html{ background:#000 }
         <div class="neutral" id="tokBarNote"></div>
         <div id="tokChart" class="cbox"></div>
         <div class="neutral" id="tokNeutral"></div>
-        <div class="foot" id="tokFoot"></div>
       </div>
     </div>
+    <div class="stats3" id="tokFacts"></div>
     <div class="stats3" id="tokStats"></div>
     <div class="card hide" id="ownerCard">
       <div class="row"><span class="lbl" id="ownTitle">Creatore</span></div>
@@ -694,7 +694,7 @@ const I18N = {
 it: {
  'wallet.connect':'Connetti wallet', 'demo.line':'demo · attività simulata, non rappresenta operazioni reali · Program ID e Factory nelle impostazioni', 'seg.tokens':'Token', 'seg.create':'Crea',
  'tok.none':'Nessun token ancora. Crea il primo.', 'tok.value':'Prezzo', 'tok.peg':'Storico', 'tok.sinceLaunch':'dal lancio', 'tok.ops':'{n} operazioni', 'tok.loading':'ricostruzione dello storico…',
- 'tok.foot':'supply {s} · TVL {r} · penalità {p} uscita, {e} ingresso',
+ 'stat.supply':'Supply', 'stat.tvl':'TVL', 'stat.pen':'Penalità', 'stat.penSub':'uscita · {e} ingresso', 'stat.tokens':'token',
  'bar.be':'Pareggio della posizione {x}', 'bar.beLeft':'richiede k {x}', 'bar.profit':'sopra il pareggio {x}', 'bar.prot':'Protezione', 'bar.pens':'fino al {x} della supply',
  'stat.rt':'Round-trip', 'stat.be':'Pareggio', 'stat.turn':'Turnover 24h', 'chart.title':'Prezzo', 'chart.launch':'lancio', 'chart.range':'Periodo', 'chart.1d':'1G', 'chart.7d':'7G', 'chart.30d':'1M', 'chart.all':'Tutto',
  'neutral.chart':'Solo operazioni già avvenute. Nessuna proiezione: il protocollo non determina operazioni future.', 'neutral.bar':'Raggiungerlo dipende da operazioni di terzi che il protocollo non determina.', 'neutral.quote':'Calcolato sullo stato attuale: operazioni incluse prima della tua lo cambiano.',
@@ -764,7 +764,7 @@ it: {
 en: {
  'wallet.connect':'Connect wallet', 'demo.line':'demo · simulated activity, not real operations · Program ID and Factory in settings', 'seg.tokens':'Tokens', 'seg.create':'Create',
  'tok.none':'No tokens yet. Create the first one.', 'tok.value':'Price', 'tok.peg':'History', 'tok.sinceLaunch':'since launch', 'tok.ops':'{n} operations', 'tok.loading':'rebuilding history…',
- 'tok.foot':'supply {s} · TVL {r} · penalty {p} exit, {e} entry',
+ 'stat.supply':'Supply', 'stat.tvl':'TVL', 'stat.pen':'Penalty', 'stat.penSub':'exit · {e} entry', 'stat.tokens':'tokens',
  'bar.be':'Position break-even {x}', 'bar.beLeft':'needs k {x}', 'bar.profit':'above break-even {x}', 'bar.prot':'Protection', 'bar.pens':'up to {x} of supply',
  'stat.rt':'Round trip', 'stat.be':'Break-even', 'stat.turn':'Turnover 24h', 'chart.title':'Price', 'chart.launch':'launch', 'chart.range':'Range', 'chart.1d':'1D', 'chart.7d':'7D', 'chart.30d':'1M', 'chart.all':'All',
  'neutral.chart':'Past operations only. No projection: the protocol does not determine future operations.', 'neutral.bar':'Reaching it depends on third-party operations the protocol does not determine.', 'neutral.quote':'Computed on the current state: operations included before yours change it.',
@@ -853,7 +853,8 @@ function faqFig(kind){
   else if (kind === 'turn') h = stats(2);
   else if (kind === 'tabs') h = `<div class="seg mini"><button class="on" tabindex="-1">${t('cta.mint')}</button><button tabindex="-1">${t('cta.redeem')}</button><button tabindex="-1">${t('cta.donate')}</button></div>`;
   else if (kind === 'bar') h = `<div class="box tok"><div class="pv dim">${t('tok.value')}<b>${fmtNum(0.0013, 4)} SOL</b></div><div class="hlbox"><div class="bar"><i style="width:34%"></i></div><div class="barlbl"><span>${t('bar.prot')}</span><span>${t('bar.pens', { x: pct(34, 0) })}</span></div></div></div>`;
-  else if (kind === 'foot') h = `<div class="box tok"><div class="neutral dim">${t('neutral.chart')}</div><div class="foot hlbox">${t('tok.foot', { s: '<span class="hlt">400</span>', r: '<span class="hlt">' + fmtNum(0.52, 2) + ' SOL</span>', p: '<span class="hlt">' + pct(2, 1) + '</span>', e: '<span class="hlt">' + pct(1, 1) + '</span>' })}</div></div>`;
+  else if (kind === 'foot') h = `<div class="stats3 hlall">${[['stat.supply', '400', t('stat.tokens')], ['stat.tvl', fmtNum(0.52, 2), 'SOL'], ['stat.pen', pct(2, 0), t('stat.penSub', { e: pct(1, 0) })]]
+    .map(([k, v, c]) => `<div><small>${t(k)}</small><b>${v}</b><em>${c}</em></div>`).join('')}</div>`;
   return h ? `<div class="fig" aria-hidden="true">${h}</div>` : '';
 }
 function applyLang(){
@@ -1441,7 +1442,12 @@ function renderToken(){
   $('#tokPend').textContent = left; $('#tokNext').textContent = right;
   renderChart($('#tokChart'), tk, animate);
   $('#tokStats').innerHTML = `<div><small>${t('stat.rt')}</small><b>${isNaN(m.rt) ? '—' : fmtNum(m.rt * 100, 2) + '%'}</b></div><div><small>${t('stat.be')}</small><b>${isNaN(m.be) ? '—' : '+' + fmtNum(m.be * 100, 2) + '%'}</b></div><div><small>${t('stat.turn')}</small><b>${fmtNum(m.turnover * 100, 1)}%</b></div>`;
-  $('#tokFoot').textContent = t('tok.foot', { s: unitsStr(tk, tk.s.S), r: fmtNat(tk.chain, tk.s.bal), p: fmtNum(Number(tk.p) / 100, 1) + '%', e: fmtNum(Number(tk.e) / 100, 1) + '%' });
+  // valori brevi: la cella è stretta sul telefono
+  const compact = v => v >= 1e5 ? v.toLocaleString(LOCALE(), { notation: 'compact', maximumFractionDigits: 1 }) : fmtNum(v, v >= 100 ? 0 : 2);
+  const tvl = fmtNat(tk.chain, tk.s.bal), cut = tvl.lastIndexOf(' ');
+  $('#tokFacts').innerHTML = `<div><small>${t('stat.supply')}</small><b>${compact(Number(tk.s.S) / Number(pow10(tk.decimals)))}</b><em>${escapeHtml(tk.symbol || t('stat.tokens'))}</em></div>`
+    + `<div><small>${t('stat.tvl')}</small><b>${tvl.slice(0, cut)}</b><em>${tvl.slice(cut + 1)}</em></div>`
+    + `<div><small>${t('stat.pen')}</small><b>${fmtNum(Number(tk.p) / 100, 1)}%</b><em>${t('stat.penSub', { e: fmtNum(Number(tk.e) / 100, 1) + '%' })}</em></div>`;
 }
 function renderAmount(){
   const tk = cur(); const C = tk ? CHAINS[tk.chain] : CHAINS.sol; const isOn = tk ? connected(tk.chain) : false; const sym = tk ? (tk.symbol || nameOf(tk)) : 'TOKEN';
