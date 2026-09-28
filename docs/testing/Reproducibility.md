@@ -33,6 +33,7 @@ cargo install --locked kani-verifier && cargo kani setup
 | Marathon Solana (120 utenti × 100k) | `python3 tools/redteam/gen.py sol --seed 777 --seqs 1 --ops 100000 --users 120 --sparse 1000 --out /tmp/marathon && cd solana && BERNIE_DIFF_DIR=/tmp/marathon cargo test -p bernie-program --release --test differential` |
 | Differential contratti (Foundry) | `cd evm && python3 ../tools/redteam/gen.py evm --seed 5000 --seqs 100 --ops 500 --users 8 --out diff && forge test --match-contract DifferentialTest --gas-limit 18446744073709551615` (oltre ~10⁵ passi il limite di default non basta) |
 | Test avversariali | `cargo test -p bernie-program --release --test adversarial` e `forge test --match-contract AdversarialTest` |
+| Build verificabile Solana | `solana-verify build --library-name bernie_program --base-image solanafoundation/solana-verifiable-build:4.1.0 "$PWD/solana"`, poi `solana-verify get-executable-hash solana/target/deploy/bernie_program.so` contro `solana-verify get-program-hash -u devnet 8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH` (workflow manuale `verify-build.yml`) |
 | Mutation testing | `python3 tools/mutation/mutate.py state\|evm\|solana` (sottoinsieme: `--only REGEX` sugli id) |
 | Kani | `cd solana/state && cargo kani --harness NOME` (5 harness, elenco in Baseline.md) |
 | Halmos | `cd evm && halmos --contract BernieMathHalmos --function check_NOME --solver-timeout-assertion 0` |
