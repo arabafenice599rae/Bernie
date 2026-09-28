@@ -45,7 +45,7 @@
  },
  {
   "id": "cm:program/src/token.rs:73:9: delete match arm 0 in token_account",
-  "reason": "EQUIVALENT rispetto alla specifica: Token-2022 mantiene delegate = None ⇒ delegated_amount = 0 (revoke e l'uso completo azzerano entrambi) ma non cancella i byte del vecchio delegato. Il mutante legge quel delegato; per u ≥ 1 serve delegated_amount ≥ u e l'errore resta MissingDelegation; per u = 0 l'errore diventa ZeroAmount invece di MissingDelegation. La specifica non fissa la precedenza tra i due errori (l'oracolo ammette entrambi) e lo stato non cambia"
+  "reason": "EQUIVALENT con Token-2022 reale: quando il delegato è None (revoke o uso completo della delega) Token-2022 azzera anche i 32 byte della chiave, verificato su Mollusk. Il mutante legge quindi Some(0), diverso dal vault PDA, e dà MissingDelegation come l'originale. La lettura del tag resta come difesa contro un layout diverso"
  },
  {
   "id": "cm:program/src/token.rs:95:58: replace + with * in initialize_metadata",

@@ -4,7 +4,8 @@
 Per ogni stato di partenza costruito direttamente (S = 0, 1, 2, grande; Q = 0, 1, S − 1;
 k al prezzo minimo e massimo e oltre) e per ogni operazione con argomenti ai bordi
 (0, 1, 2, S − 1, S, S + 1, MAX − 1, MAX; slippage esatto − 1, esatto, esatto + 1),
-l'oracolo (Appendice A più i domini di chain) calcola esito e stato finale.
+l'oracolo calcola esito e stato finale: il primo errore secondo l'ordine di §7 con i domini
+della chain (`ordered.py`), i valori dal modello dell'Appendice A. Un solo errore per caso.
 
   vectors/boundary_sol.txt   SCALE 10⁹, importi u64, k/R/Q u128  → solana/state/tests/boundary.rs
   vectors/boundary_evm.json  SCALE 10¹⁸, uint256                  → evm/test/Boundary.t.sol
@@ -20,47 +21,12 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "model"))
 from bernie import Vault, Err  # noqa: E402
 
+sys.path.insert(0, HERE)
+import ordered  # noqa: E402
+
 U64 = (1 << 64) - 1
 U128 = (1 << 128) - 1
 U256 = (1 << 256) - 1
-
-
-class Big(int):
-    """Intero che registra il massimo valore assoluto di ogni risultato intermedio: il
-    modello, eseguito su questi interi, dice se una piattaforma a 256 bit traboccherebbe."""
-    peak = 0
-
-    def _w(self, x):
-        Big.peak = max(Big.peak, abs(int(x)))
-        return Big(x)
-
-    def __add__(self, o): return self._w(int(self) + int(o))
-    def __radd__(self, o): return self._w(int(o) + int(self))
-    def __sub__(self, o): return self._w(int(self) - int(o))
-    def __rsub__(self, o): return self._w(int(o) - int(self))
-    def __mul__(self, o): return self._w(int(self) * int(o))
-    def __rmul__(self, o): return self._w(int(o) * int(self))
-    def __floordiv__(self, o): return self._w(int(self) // int(o))
-    def __rfloordiv__(self, o): return self._w(int(o) // int(self))
-    def __mod__(self, o): return self._w(int(self) % int(o))
-    def __neg__(self): return self._w(-int(self))
-
-
-def peak_of(v, op, u, lim):
-    """Massimo intermedio dell'operazione sul modello (None se il modello fallisce prima)."""
-    w = Vault.__new__(Vault)
-    w.__dict__ = {k: (Big(x) if isinstance(x, int) else x) for k, x in v.__dict__.items()}
-    Big.peak = 0
-    try:
-        if op == "M":
-            w.mint(Big(u), Big(lim))
-        elif op == "R":
-            w.redeem(Big(u), Big(lim))
-        else:
-            w.donate(Big(u))
-    except Err:
-        pass
-    return Big.peak
 
 
 def vault(k, S, Q, p, e, SC):
@@ -106,48 +72,22 @@ def run_sol(v, op, u, SC):
     lines = []
 
     def attempt(kind, u, lim):
-        w = Vault.__new__(Vault)
-        w.__dict__ = dict(v.__dict__)
-        fc0, fp0, b0 = w.fc, w.fp, w.bal
-        try:
+        err = ordered.check("sol", v, kind, u, lim)
+        ordered.cross(v, kind, u, lim, err)
+        if err:
+            tail, fin = f"err {err}", v
+        else:
+            w = Vault.__new__(Vault)
+            w.__dict__ = dict(v.__dict__)
+            fc0, fp0 = w.fc, w.fp
             if kind == "M":
-                if u > 0:
-                    probe = Vault.__new__(Vault)
-                    probe.__dict__ = dict(v.__dict__)
-                    total = probe.mint(u)
-                    if total > U64 or probe.S > U64 or max(probe.k, probe.R + probe.Q) > U128:
-                        raise Err("Overflow|Slippage" if total > lim else "Overflow")
-                    # prodotti intermedi di state.rs in u128: u·k·e, u·k
-                    if u * v.k * v.e > U128 or u * probe.k > U128:
-                        raise Err("Overflow")
-                res = w.mint(u, lim)
-                tail = f"ok {res} {w.fc - fc0} {w.fp - fp0}"
+                tail = f"ok {w.mint(u, lim)} {w.fc - fc0} {w.fp - fp0}"
             elif kind == "R":
-                if 0 < u <= v.S:
-                    if u * v.k * v.p > U128:
-                        raise Err("Overflow")
-                    probe = Vault.__new__(Vault)
-                    probe.__dict__ = dict(v.__dict__)
-                    try:
-                        probe.redeem(u, 0)
-                        if b0 - probe.bal > U64:
-                            raise Err("Overflow")
-                    except Err as ex:
-                        if ex.args[0] == "Overflow":
-                            raise
-                res = w.redeem(u, lim)
-                tail = f"ok {res} {w.fc - fc0} {w.fp - fp0}"
+                tail = f"ok {w.redeem(u, lim)} {w.fc - fc0} {w.fp - fp0}"
             else:
-                if u * SC + w.Q > U128:
-                    raise Err("Overflow")
                 w.donate(u)
-                if w.k > U128 or w.R > U128:
-                    raise Err("Overflow")
                 tail = "ok"
             fin = w
-        except Err as ex:
-            tail = f"err {ex.args[0]}"
-            fin = v
         return f"{kind} {u} {lim} {tail} {fin.k} {fin.R} {fin.Q} {fin.S}" if kind != "D" else \
             f"D {u} {tail} {fin.k} {fin.R} {fin.Q} {fin.S}"
 
@@ -212,10 +152,15 @@ def evm():
             cases = [("M", u, U256) for u in amounts] + [("R", u, 0) for u in amounts] + \
                     [("D", a, 0) for a in (0, 1, 2, 10**30, 1 << 200)]
             for op, u, lim in cases:
+                err = ordered.check("evm", v, op, u, lim)
+                ordered.cross(v, op, u, lim, err)
                 w = Vault.__new__(Vault)
                 w.__dict__ = dict(v.__dict__)
                 fc0, fp0 = w.fc, w.fp
-                try:
+                if err:
+                    ok, fin, res = 0, v, 0
+                else:
+                    ok, err, fin = 1, "", w
                     if op == "M":
                         res = w.mint(u, lim)
                     elif op == "R":
@@ -223,17 +168,6 @@ def evm():
                     else:
                         w.donate(u)
                         res = 0
-                    # uint256: qualunque intermedio oltre 2²⁵⁶ − 1 è Panic(0x11) (§13)
-                    if peak_of(v, op, u, lim) > U256:
-                        raise Err("Overflow")
-                    ok, err, fin = 1, "", w
-                except Err as ex:
-                    ok, err, fin, res = 0, ex.args[0], v, 0
-                    # un errore del modello con intermedi oltre 256 bit: sull'EVM può arrivare
-                    # prima il Panic dell'aritmetica checked; entrambi ammessi
-                    if err != "Overflow" and peak_of(v, op, u, lim) > U256:
-                        err = "Overflow|" + err
-                    fc0, fp0 = w.fc, w.fp = v.fc, v.fp
                 for key, val in (("k0", k), ("R0", S * k), ("Q0", Q), ("S0", S), ("p", p), ("e", e),
                                  ("op", {"M": 1, "R": 2, "D": 3}[op]), ("u", u), ("lim", lim), ("ok", ok),
                                  ("err", err), ("res", res), ("fc", fin.fc - fc0 if ok else 0),

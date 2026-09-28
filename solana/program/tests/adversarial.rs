@@ -641,3 +641,70 @@ fn state_log_matches_vault_after_every_operation() {
         assert!(logs.contains(&want), "{op}: manca `{want}` in {logs:?}");
     }
 }
+
+/// Q-1, ordine di valutazione di §7: account → argomenti → calcolo → Slippage → errori di
+/// piattaforma scoperti dopo il calcolo (burn dei token). Ogni caso ha più condizioni
+/// d'errore vere insieme e deve riportare solo la prima.
+#[test]
+fn error_precedence_follows_spec() {
+    let m = market();
+    let s = 100 * SOL; // supply dopo i due mint iniziali (50 + 50)
+    let revoke = Instruction::new_with_bytes(
+        TOKEN_2022,
+        &[5u8],
+        vec![
+            AccountMeta::new(m.alice_ata, false),
+            AccountMeta::new_readonly(m.alice, true),
+        ],
+    );
+    // delega revocata e u = 0: MissingDelegation (account) prima di ZeroAmount (argomenti)
+    assert!(m.env.run(&[revoke]).is_ok());
+    m.reject(
+        &[m.env.redeem_ix(&m.alice, &m.alice_ata, 0, 0, 0)],
+        InstructionError::Custom(15),
+        "delega revocata e u = 0",
+    );
+    // nessuna delega e u > S: MissingDelegation prima di ExceedsSupply
+    m.reject(
+        &[m.env.redeem_ix(&m.bob, &m.bob_ata, 0, s + 1, 0)],
+        InstructionError::Custom(15),
+        "nessuna delega e u > S",
+    );
+    // u > S e u > saldo: ExceedsSupply prima del saldo token
+    m.reject(
+        &m.redeem_ixs(s + 1),
+        InstructionError::Custom(2),
+        "u > S e u > saldo",
+    );
+    // u ≤ S ma oltre il saldo di Alice (50), uscita sotto min_out: Slippage prima del burn
+    let u = 60 * SOL;
+    m.reject(
+        &[
+            m.env.approve_ix(&m.alice, &m.alice_ata, u),
+            m.env.redeem_ix(&m.alice, &m.alice_ata, 0, u, u64::MAX),
+        ],
+        InstructionError::Custom(5),
+        "slippage e saldo insufficiente",
+    );
+    // stesso redeem senza slippage: il saldo si scopre al burn (Token-2022 InsufficientFunds)
+    m.reject(
+        &m.redeem_ixs(u),
+        InstructionError::Custom(1),
+        "saldo insufficiente al burn",
+    );
+    // mint con u = 0 e max_cost = 0: ZeroAmount prima di Slippage
+    m.reject(
+        &[m.env.mint_ix(&m.alice, &m.alice_ata, 0, 0, 0)],
+        InstructionError::Custom(1),
+        "mint u = 0 e max_cost = 0",
+    );
+    // mint con costo oltre max_cost e saldo nativo insufficiente: Slippage prima dei trasferimenti
+    let poor = Pubkey::new_unique();
+    m.env.fund(&poor, 1_000_000);
+    let poor_ata = m.env.token_account(&poor, None);
+    m.reject(
+        &[m.env.mint_ix(&poor, &poor_ata, 0, 10 * SOL, 1)],
+        InstructionError::Custom(5),
+        "slippage e saldo nativo insufficiente",
+    );
+}

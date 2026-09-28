@@ -11,7 +11,7 @@ import "../src/BernieMath.sol";
 /// Differential e state-machine fuzzing (pre-audit, fasi 2–4, 19–21) sui contratti.
 ///
 /// Riesegue le sequenze di `tools/redteam/gen.py evm` (oracolo: Appendice A) con più
-/// utenti e confronta dopo *ogni* passo: esito (ok o uno degli errori ammessi), k, R, Q, S,
+/// utenti e confronta dopo *ogni* passo: esito (ok o l'errore previsto dall'ordine di §7), k, R, Q, S,
 /// saldo del contratto, totalFeesOwed, ETH e token di ogni utente, fee dovute a utenti e
 /// tesoreria, ETH ricevuti dalla tesoreria. In modo indipendente dall'oracolo verifica la
 /// conservazione dell'ETH. Le sequenze si leggono da `evm/diff/` (`evm_*.json`); senza file
@@ -129,7 +129,8 @@ contract DifferentialTest is Test {
                 assertEq(mask, 1, string.concat("atteso errore, riuscito: ", where));
             } else {
                 uint256 e = errIndex(ret);
-                assertTrue(e < 12 && (mask >> e) & 1 == 1, string.concat("errore diverso: ", where));
+                // esatto: l'oracolo prevede un solo errore, nell'ordine di §7
+                assertEq(mask, e < 12 ? 1 << e : 0, string.concat("errore diverso: ", where));
             }
             _compare(t, q, s, where);
             assertEq(_total(t, q.n), total0, string.concat("ETH creato o distrutto: ", where));

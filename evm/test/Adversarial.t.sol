@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {Bernie} from "../src/Bernie.sol";
 import {BernieFactory} from "../src/BernieFactory.sol";
 import "../src/BernieMath.sol";
@@ -497,5 +498,53 @@ contract AdversarialTest is Test {
         token.redeem(3e18 + 1, 0);
         vm.stopPrank();
         _same(s0, _snap());
+    }
+
+    /// Q-1, ordine di valutazione di §7: argomenti → calcolo → Slippage → errori di
+    /// piattaforma scoperti dopo il calcolo (burn). Ogni caso ha più condizioni d'errore
+    /// vere insieme e deve riportare solo la prima.
+    function test_error_precedence_follows_spec() public {
+        // create: prezzo, poi penalità, poi metadati (la numerazione dei codici non è l'ordine)
+        vm.expectRevert(PriceOutOfRange.selector);
+        factory.create(1, 1, 2, "", "", bytes32("q1"));
+        vm.expectRevert(PenaltyOutOfRange.selector);
+        factory.create(P, 1, 2, "", "", bytes32("q1"));
+        vm.expectRevert(MetadataTooLong.selector);
+        factory.create(P, 200, 100, "", "", bytes32("q1"));
+
+        // donate su un token senza holder: ZeroAmount prima di NoHolders
+        vm.expectRevert(ZeroAmount.selector);
+        vm.prank(ALICE);
+        token.donate{value: 0}();
+
+        _mint(ALICE, 50e18);
+        _mint(BOB, 50e18);
+        uint256 s = token.totalSupply();
+
+        // mint u = 0 senza valore: ZeroAmount prima di Slippage
+        vm.expectRevert(ZeroAmount.selector);
+        vm.prank(ALICE);
+        token.mint{value: 0}(0);
+
+        // u > S e u > saldo: ExceedsSupply prima del saldo token
+        vm.expectRevert(ExceedsSupply.selector);
+        vm.prank(ALICE);
+        token.redeem(s + 1, 0);
+
+        // u ≤ S ma oltre il saldo di Alice, uscita sotto minOut: Slippage prima del burn
+        uint256 u = 60e18;
+        vm.expectRevert(Slippage.selector);
+        vm.prank(ALICE);
+        token.redeem(u, type(uint256).max);
+
+        // stesso redeem senza slippage: il saldo si scopre al burn
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, ALICE, 50e18, u));
+        vm.prank(ALICE);
+        token.redeem(u, 0);
+
+        // trasferimento al contratto oltre il saldo: TransferToSelf prima del saldo
+        vm.expectRevert(TransferToSelf.selector);
+        vm.prank(ALICE);
+        token.transfer(address(token), 51e18);
     }
 }

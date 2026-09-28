@@ -60,7 +60,8 @@ Legenda dei file:
 | ID | Proprietà | Esistente | Avversariale | Stato |
 |---|---|---|---|---|
 | codici | 1–17, 7 riservato | `params.rs error_codes_match_section_7`, `frontend.rs` | differential confronta il nome dell'errore a ogni passo | ✅ |
-| Overflow | importi nativi e S in u64 (Solana), uint256 (EVM) | — | rs-bnd (264 casi Overflow, insieme ammesso con Slippage oltre u64), sol-bnd (Panic) | ✅ |
+| Overflow | nel punto del calcolo; importi nativi e S in u64, k, R, Q in u128 (Solana), uint256 (EVM) | — | rs-bnd, sol-bnd (Panic), rs-str: errore unico dal valutatore di §7 (`tools/redteam/ordered.py`) | ✅ |
+| ordine | un solo errore, il primo nell'ordine di §7 (account → argomenti → calcolo → Slippage → piattaforma; InvariantViolated fuori ordine) | — | mol-adv e sol-adv `error_precedence_follows_spec`; mol-dif, sol-dif, rs-bnd, sol-bnd, rs-str con oracolo esatto | ✅ |
 | atomicità | un errore non cambia nulla | kani (`Err ⇒ stato identico`) | mol-adv confronta l'intero store di Mollusk; mol-dif confronta tutti gli account; sol-adv `failed_operations_leave_state_unchanged`; sol-dif a ogni passo | ✅ |
 | S = 0 / rientro | ultimo uscente, excess al creator, rientro al k raggiunto | mol, sol-t | rs-bnd (S = 0, 1, 2), differential | ✅ |
 

@@ -165,7 +165,7 @@ def _step(r, m, chain):
             xamt = min(xamt, (1 << 64) - 1)
         if chain == "evm" and r.random() < 0.05:
             ev = {"op": "transfer_self", "a": a, "x": xamt}
-            res = {"err": ["TransferToSelf"]} if xamt <= bal else {"err": ["TransferToSelf", "InsufficientTokens"]}
+            res = {"err": ["TransferToSelf"]}    # Bernie._update lo controlla prima del saldo
         else:
             ev = {"op": "transfer", "a": a, "b": b, "x": xamt}
             res = m.transfer(a, b, xamt)
@@ -231,7 +231,7 @@ def replay(seq, ops):
         elif op == "transfer":
             res = m.transfer(ev["a"], ev["b"], ev["x"])
         elif op == "transfer_self":
-            res = {"err": ["TransferToSelf"]} if ev["x"] <= m.tokens[ev["a"]] else {"err": ["TransferToSelf", "InsufficientTokens"]}
+            res = {"err": ["TransferToSelf"]}
         elif op == "revoke":
             res = m.revoke(ev["a"])
         else:

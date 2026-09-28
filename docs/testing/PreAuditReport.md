@@ -5,8 +5,8 @@ crate `bernie-state`), con il modello Python dell'Appendice A come oracolo indip
 Branch `claude/readme-review-8901um`, dalla baseline `4583bf5`.
 
 **Esito del gate: YELLOW.** Nessun bug nel protocollo, nessuna condizione RED. Restano aperti
-un punto di deployment (tesorerie Solana segnaposto), un punto di specifica da decidere e
-limiti di misura dichiarati sotto. Dettagli nel [gate finale](#gate-finale).
+un punto di deployment (tesorerie Solana segnaposto) e limiti di misura dichiarati sotto; la
+precedenza degli errori (Q-1) è stata decisa e fissata in §7. Dettagli nel [gate finale](#gate-finale).
 
 La logica del protocollo non è stata modificata: `solana/program/src`, `solana/state/src` ed
 `evm/src` sono identici alla baseline. Tutte le correzioni riguardano oracolo e harness di test.
@@ -23,14 +23,14 @@ VERIFIED, Halmos 9/9 (4 in locale, tutti e 9 in CI). Nessun test saltato. Versio
 |---|---|---|
 | `solana/state/tests/guards.rs` | ogni invariante in isolamento, soglie inclusive (solvenza, excess, sweep, min_out, max_cost) | 5 test |
 | `solana/state/tests/boundary.rs` | 2 058 vettori di confine, absorb e idempotenza, tabella fee con oracolo intero | 3 test |
-| `solana/program/tests/adversarial.rs` | vault falsi, cross-market, Token-2022 incoerente, firme, programmi, tesoreria, insolvenza, permutazioni e duplicati di account, rent esatto, log `State` | 13 test |
+| `solana/program/tests/adversarial.rs` | vault falsi, cross-market, Token-2022 incoerente, firme, programmi, tesoreria, insolvenza, permutazioni e duplicati di account, rent esatto, log `State`, precedenza degli errori (§7) | 14 test |
 | `solana/program/tests/differential.rs` | differential e state-machine su Mollusk + regressione T-2 | 2 test |
 | `solana/state/examples/diff_stream.rs` | consumatore ad alto volume del differential sullo stato | harness |
-| `evm/test/Adversarial.t.sol` | invarianti in isolamento, stato corrotto, rientri su ogni percorso di ETH, cloni, furti, doppi prelievi, atomicità | 18 test |
+| `evm/test/Adversarial.t.sol` | invarianti in isolamento, stato corrotto, rientri su ogni percorso di ETH, cloni, furti, doppi prelievi, atomicità, precedenza degli errori (§7) | 19 test |
 | `evm/test/Boundary.t.sol` | 978 vettori di confine SCALE 10¹⁸, absorb | 2 test |
 | `evm/test/Differential.t.sol` | differential e state-machine su Foundry | 1 test |
 | `tests/test_redteam.py` | determinismo del generatore, replay, regressione T-1 | 4 test |
-| `tools/redteam/` | oracolo (`oracle.py`), generatore (`gen.py`), stream (`stream.py`), vettori (`boundary.py`), minimizzatore (`minimize.py`) | harness |
+| `tools/redteam/` | oracolo (`oracle.py`), ordine degli errori di §7 per chain (`ordered.py`), generatore (`gen.py`), stream (`stream.py`), vettori (`boundary.py`), minimizzatore (`minimize.py`) | harness |
 | `tools/mutation/` | harness di mutazione, cataloghi mirati (55 Solana, 24 stato, 43 EVM), equivalenti motivati | harness |
 
 CI: vettori di confine e uno stream breve a ogni push (`ci.yml`); campagne lunghe e mutation
@@ -72,8 +72,10 @@ identici byte per byte (SHA-256 `cb4658e3…`); `tests/test_redteam.py` lo verif
 | Vettori di confine EVM | — | 978 casi | identici |
 | Programma e contratti | vedi §4 | ogni passo confronta esito, k, R, Q, S, lamport/ETH e token di ogni utente, deleghe, fee dovute, tesoreria | identici |
 
-Totale sul solo livello di stato: 10⁵ sequenze × 10³ passi = 10⁸ passi. Gli errori ammessi sono
-insiemi quando più condizioni valgono insieme (la specifica non fissa la precedenza, vedi Q-1).
+Totale sul solo livello di stato: 10⁵ sequenze × 10³ passi = 10⁸ passi. In queste campagne gli
+errori ammessi erano insiemi quando più condizioni valevano insieme. Dopo la decisione su Q-1
+l'oracolo è esatto (un solo errore, nell'ordine di §7) e le campagne di verifica sono state
+ripetute in quella forma: vedi [Q-1](#domande-sulla-specifica).
 
 ## 6. Mutation testing
 
@@ -90,7 +92,7 @@ ognuno è stato analizzato ([survivors.md](mutation/survivors.md)): 83 uccisi da
 Gli equivalenti sono: trasferimenti di 0 lamport, un buffer locale più grande, controlli
 difensivi veri per costruzione (supply dopo mint/burn, solvenza dopo sweep, underflow che il
 runtime rifiuta comunque), l'identità ⌊⌊b/250⌋/2⌋ = ⌊b/500⌋ (vera finché FEE_C = FEE_P) e la
-precedenza d'errore di Q-1. I COMPILE_ERROR non sono contati come prova di forza della suite.
+lettura difensiva del tag del delegato (Token-2022 azzera anche la chiave, vedi O-4). I COMPILE_ERROR non sono contati come prova di forza della suite.
 
 ## 7. Attacchi (fase 18)
 
@@ -149,11 +151,10 @@ excess) e lo confronta con il totale iniziale. Nessun denaro creato, distrutto o
   regole a livello di transazione (fee, compute budget per transazione, lock degli account)
   non sono modellate; i test su CU restano quelli della suite esistente.
 - **Coverage del programma SBF** non misurabile con llvm-cov (vedi §9).
-- **Precedenza degli errori** non fissata dalla specifica: l'oracolo accetta un insieme di
-  errori quando più condizioni valgono insieme (Q-1).
 - **Kani `mint_canonical_or_error`** richiede 25 minuti in CI (2 191 s in locale) su un timeout di 45: margine da tenere d'occhio se la matematica cresce.
-- **Domini numerici**: importi oltre u64 (Solana) o uint256 (EVM) sono fuori dominio; il modello
-  illimitato dà Slippage dove la chain dà Overflow/Panic, e il confronto accetta entrambi.
+- **Domini numerici**: il modello dell'Appendice A usa interi illimitati; il primo errore con i
+  domini finiti (u64/u128 su Solana, uint256 su EVM) lo decide `tools/redteam/ordered.py`
+  seguendo §7, con un controllo incrociato contro il modello su ogni errore non di dominio.
 - **Cloni EVM**: chiunque può clonare l'implementazione con parametri non validati; la tesoreria
   resta fissa, ma i token vanno riconosciuti tramite il registro della factory (O-2).
 - **Mainnet**: nessun deployment di produzione; le tesorerie Solana sono segnaposto.
@@ -171,7 +172,8 @@ di test; tutti corretti, ciascuno con un test di regressione dove ha senso.
 | T-3 | tooling | campagne Foundry | la campagna 1 000 × 500 falliva con `EvmError: Revert` | `forge test --match-contract DifferentialTest` su 5 × 10⁵ passi | limite di gas di default per test (2³⁰) | `--gas-limit` in `redteam.yml` e nella documentazione | campagna 5 × 10⁵ passi verde | chiuso |
 | T-4 | tooling | generatore | importi oltre u64 potevano arrivare al consumatore Solana | generatore prima della correzione | nessun limite al dominio u64 | importi limitati a u64; il consumatore rifiuta (non tronca) | `u64v` in `differential.rs` | chiuso |
 | T-5 | tooling | oracolo | redeem con u = 0 e nessuna delega: errore diverso dal programma | sequenze Solana con revoke | Token-2022 azzera il delegato a quantità 0; non era modellato | `has_delegate` nell'oracolo | differential Solana | chiuso |
-| T-6 | tooling | oracolo | costo di mint oltre u64 su pool piccoli (salto di k): Slippage nel modello, Overflow on-chain | stream SCALE 10⁹ | dominio illimitato del modello | insiemi `Overflow\|Slippage` sui confini di dominio | `boundary.py --check` e stream in CI | chiuso |
+| T-6 | tooling | oracolo | costo di mint oltre u64 su pool piccoli (salto di k): Slippage nel modello, Overflow on-chain | stream SCALE 10⁹ | dominio illimitato del modello | prima insiemi `Overflow\|Slippage`; dopo Q-1 valutatore d'ordine per chain (`ordered.py`), errore unico | `boundary.py --check`, stream in CI, `error_precedence_follows_spec` | chiuso |
+| T-7 | tooling | report | O-4 del report affermava che Token-2022 lascia i byte del vecchio delegato dopo revoke | rilancio del mutante `token.rs:73` dopo Q-1 (sopravvissuto) e lettura dell'account su Mollusk | ipotesi non verificata | O-4 e motivazione dell'equivalente corrette | lettura dei byte del token account dopo revoke e dopo uso completo | chiuso |
 
 ### Osservazioni (nessuna azione sul codice)
 
@@ -182,20 +184,26 @@ di test; tutti corretti, ciascuno con un test di regressione dove ha senso.
   riconoscere i token tramite `BernieFactory.tokens`.
 - **O-3**: il controllo che il firmatario del redeem sia il proprietario del token account è
   l'unica difesa contro il riscatto forzato di chi ha una delega attiva (coperto da test e mutanti).
-- **O-4**: Token-2022 non azzera i byte del vecchio delegato dopo revoke; il programma legge
-  correttamente il tag del `COption` (mutante `token.rs:73`, vedi Q-1).
+- **O-4**: quando il delegato torna None (revoke o delega usata tutta) Token-2022 azzera tag,
+  chiave e quantità (verificato su Mollusk). La lettura del tag del `COption` nel programma è
+  quindi difensiva; il mutante che la toglie è equivalente (`token.rs:73`).
 - **O-5**: la rent-exemption del pagatore è garantita dal runtime, non dal programma (T-2).
 - **O-6**: `forge lint` segnala missing-zero-check, calls-loop e reentrancy-events: scelte
   documentate, nessun effetto sul comportamento.
 
 ### Domande sulla specifica
 
-- **Q-1 — precedenza degli errori.** Quando più condizioni d'errore valgono insieme (per esempio
-  redeem con u = 0 senza delega: `MissingDelegation` o `ZeroAmount`), la specifica non dice
-  quale riportare. Le implementazioni ne scelgono una, l'oracolo accetta l'insieme. Lo stato non
-  cambia in nessun caso. Serve una decisione: fissare un ordine nella specifica (e allora
-  aggiungere test che lo impongano) oppure dichiarare esplicitamente che l'errore è uno
-  qualunque dell'insieme. Finché non c'è, il mutante `token.rs:73` resta EQUIVALENT.
+- **Q-1 — precedenza degli errori. Chiusa.** Decisione: si scrive in §7 l'ordine applicato oggi
+  dalle implementazioni, senza cambiare il codice. L'ordine coincide sulle due chain per create
+  (Price → Penalty → Metadata; la numerazione dei codici non è l'ordine), redeem e donate. Nel
+  mint diverge solo la posizione di `InvariantViolated` rispetto a `Slippage`; `InvariantViolated`
+  è stato messo fuori dall'ordine perché segnala un bug e non si raggiunge da stati validi.
+  `Overflow` scatta nel punto del calcolo, con domini per chain. L'Appendice A verifica il saldo
+  token del redeem (e il saldo nativo del donate) dopo il calcolo, come le implementazioni.
+  Oracolo, generatori e consumatori sono esatti: un solo errore per passo. Nuovi test:
+  `error_precedence_follows_spec` (Mollusk e Foundry). Verifica con l'oracolo esatto:
+  vettori di confine (2 058 + 978, 243 casi passati da insieme a errore unico), stream
+  4 × 10⁵ passi, Mollusk 3 × 10⁵ (marathon 100k compresa), Foundry 10⁵, tutti identici.
 
 ## Gate finale
 
@@ -212,12 +220,11 @@ di test; tutti corretti, ciascuno con un test di regressione dove ha senso.
 
 Nessuna condizione RED (nessuna violazione di invarianti, divergenza, movimento non autorizzato,
 divergenza supply/backing, mutante critico sopravvissuto, corruzione di stato, doppio prelievo,
-furto). Il risultato è **YELLOW** per tre motivi:
+furto). Q-1 è chiusa. Il risultato è **YELLOW** per due motivi:
 
 1. configurazione di produzione non verificabile: le tesorerie Solana sono segnaposto e non
    esiste un deployment mainnet;
-2. Q-1 aperta nella specifica;
-3. componenti non misurabili con la coverage (programma SBF), compensati dal mutation testing.
+2. componenti non misurabili con la coverage (programma SBF), compensati dal mutation testing.
 
 Per GREEN: tesorerie reali in `TREASURIES`, stessa verifica binario/immutabili fatta qui sul
-deployment di produzione, decisione su Q-1.
+deployment di produzione.

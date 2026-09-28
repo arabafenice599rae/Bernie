@@ -57,12 +57,8 @@ fn boundary_vectors_solana() {
             }
             (Ok(None), "ok") => 0,
             (Err(e), "err") => {
-                assert!(
-                    rest[0].split('|').any(|x| x == e.name()),
-                    "errore {} invece di {}: {ctx}",
-                    e.name(),
-                    rest[0]
-                );
+                // un solo errore previsto: il primo nell'ordine di §7
+                assert_eq!(e.name(), rest[0], "errore diverso: {ctx}");
                 assert_eq!(v, start, "stato cambiato da un errore: {ctx}");
                 1
             }

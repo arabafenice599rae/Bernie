@@ -12,8 +12,9 @@ operazione a `Vault<SCALE>` e confronta esito e k, R, Q, S dopo ogni passo.
   <op> ... err Nome       k R Q S   (stato invariato)
 
 Uso: stream.py --seed S --seqs N --ops M --scale 10|1000000000 | cargo run --release --example diff_stream
-Gli importi restano entro u64 e i prodotti entro u128, come su Solana: i limiti di
-overflow hanno test dedicati (fase 5).
+Gli importi restano entro u64 e i prodotti entro u128, come su Solana. Ogni errore è unico:
+il primo nell'ordine di §7 (`ordered.py`), con Overflow nel punto in cui il calcolo esce dal
+dominio; i limiti di overflow hanno anche vettori dedicati (`boundary.py`).
 """
 import argparse
 import math
@@ -23,6 +24,9 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "model"))
 from bernie import Vault, Err  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ordered  # noqa: E402
 
 U64 = (1 << 64) - 1
 
@@ -58,39 +62,31 @@ def run(seed, ops, scale, out):
                 u = min(u, U64)
                 mx = U64 if r.random() < 0.8 else r.randint(0, U64 if r.random() < 0.1 else 10**12)
                 line = f"M {u} {mx}"
-                if u > 0:
-                    # Domini di Solana (§2, §20): importi nativi e S in u64, k, R, Q in u128.
-                    # Il modello ha interi illimitati: oltre i limiti l'implementazione dà
-                    # Overflow (§7), il modello eventualmente Slippage; entrambi ammessi.
-                    probe = Vault.__new__(Vault)
-                    probe.__dict__ = dict(v.__dict__)
-                    b0 = probe.bal
-                    total = probe.mint(u)
-                    if total > U64 or probe.S > U64 or max(probe.k, probe.R + probe.Q) >= 1 << 128:
-                        raise Err("Overflow|Slippage" if total > mx else "Overflow")
+                # primo errore nell'ordine di §7, con i domini di Solana (u64, u128)
+                err = ordered.check("sol", v, "M", u, mx)
+                ordered.cross(v, "M", u, mx, err)
+                if err:
+                    raise Err(err)
                 res = v.mint(u, mx)
             elif x < 0.9:
                 u = r.choice([v.S, r.randint(1, max(v.S, 1)), r.randint(1, 30), v.S + 1, 0])
                 u = min(u, U64)
                 mo = 0 if r.random() < 0.8 else r.randint(0, 10**12)
                 line = f"R {u} {mo}"
-                if 0 < u <= v.S:
-                    probe = Vault.__new__(Vault)
-                    probe.__dict__ = dict(v.__dict__)
-                    b0 = probe.bal
-                    try:
-                        probe.redeem(u, 0)
-                        if b0 - probe.bal > U64:   # g, lordo in lamport
-                            raise Err("Overflow")
-                    except Err as ex:
-                        if ex.args[0] == "Overflow":
-                            raise
+                err = ordered.check("sol", v, "R", u, mo)
+                ordered.cross(v, "R", u, mo, err)
+                if err:
+                    raise Err(err)
                 res = v.redeem(u, mo)
             else:
                 a = r.randint(1, 30) if r.random() < 0.5 else lu(r, 1, 10**12)
                 if r.random() < 0.02:
                     a = 0
                 line = f"D {a}"
+                err = ordered.check("sol", v, "D", a)
+                ordered.cross(v, "D", a, 0, err)
+                if err:
+                    raise Err(err)
                 v.donate(a)
                 res = None
             if not fits(v):

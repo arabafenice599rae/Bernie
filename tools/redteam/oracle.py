@@ -13,10 +13,13 @@ modello questo file descrive ciò che la specifica aggiunge per ciascuna chain:
   `claimFees`, `claimFeesFor` o `factory.claimAll`; `sweep` invia al creator
   `saldo − (R + Q)/SCALE − totalFeesOwed`; `mint` rimborsa l'eccedenza di `msg.value`.
 
-Ogni operazione restituisce l'esito atteso: `{"ok": True}` oppure `{"err": [...]}` con
-l'insieme degli errori ammessi. Quando più condizioni d'errore valgono insieme, la
-specifica non fissa quale prevalga: l'oracolo le accetta tutte. Un'operazione fallita non
-cambia nulla (atomicità).
+Ogni operazione restituisce l'esito atteso: `{"ok": True}` oppure `{"err": [nome]}` con
+l'unico errore previsto. Quando più condizioni d'errore valgono insieme vale l'ordine di
+§7: errori sugli account (solo Solana), argomenti, calcolo con Overflow nel punto in cui
+esce dal dominio della chain (`ordered.py`), Slippage, poi gli errori di piattaforma che si
+scoprono dopo il calcolo (trasferimenti nativi e rent su Solana, burn dei token). Su EVM una
+transazione con `msg.value` oltre il saldo non parte: quell'errore viene prima di tutto.
+Un'operazione fallita non cambia nulla (atomicità).
 """
 import copy
 import os
@@ -24,6 +27,9 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "model"))
 from bernie import Vault, Err  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ordered  # noqa: E402
 
 U64 = (1 << 64) - 1
 RENT0 = 890_880  # minimo rent-exempt di un account di sistema senza dati (Solana)
@@ -134,22 +140,21 @@ class Market:
 
     # ── operazioni degli utenti ──
 
+    def _state(self):
+        return (self.v.k, self.v.R, self.v.Q, self.v.S)
+
     def mint(self, a, u, pay):
         """Solana: pay = max_cost. EVM: pay = msg.value (l'eccedenza torna indietro)."""
         def run():
             if self.chain == "evm" and pay > self.native[a]:
                 raise Fail(NATIVE)                        # il wallet non può inviare msg.value
+            err = ordered.mint(self.chain, self._state(), self.v.e, self.SC, u, pay)
+            ordered.cross(self.v, "M", u, pay, err)
+            if err:
+                raise Fail(err)
             v, total, c, fc, fp = self._math("mint", u)      # total = c + ft
-            errs = []
-            if total > pay:
-                errs.append("Slippage")
-            if self.chain == "sol":
-                if total > U64 or v.S > U64:
-                    errs.append("Overflow")
-                if self.native[a] - total < RENT0:
-                    errs.append(NATIVE)
-            if errs:
-                raise Fail(*errs)
+            if self.chain == "sol" and self.native[a] - total < RENT0:
+                raise Fail(NATIVE)                        # trasferimenti di sistema e rent, dopo il calcolo
             self.v = v
             self.native[a] -= total
             self.tokens[a] += u
@@ -164,21 +169,19 @@ class Market:
         """Solana: `approve` è la delega impostata nella stessa transazione (None = nessuna
         istruzione di approve: resta la delega precedente)."""
         def run():
-            errs = []
             if self.chain == "sol":
                 if approve is not None:               # l'approve fa parte della stessa transazione
                     self.delegated[a] = approve
                     self.has_delegate[a] = True
                 if not self.has_delegate[a] or self.delegated[a] < u:
-                    errs.append("MissingDelegation")
+                    raise Fail("MissingDelegation")   # errori sugli account, prima degli argomenti
+            err = ordered.redeem(self.chain, self._state(), self.v.p, self.SC, u, min_out)
+            ordered.cross(self.v, "R", u, min_out, err)
+            if err:
+                raise Fail(err)
             if u > self.tokens[a]:
-                errs.append(TOKENS)
-            try:
-                v, out, dbal, fc, fp = self._math("redeem", u, min_out)
-            except Err as ex:
-                errs.append(ex.args[0])
-            if errs:
-                raise Fail(*errs)
+                raise Fail(TOKENS)                    # il saldo token si scopre al burn
+            v, out, dbal, fc, fp = self._math("redeem", u, min_out)
             self.v = v
             self.tokens[a] -= u
             self.native[a] += out
@@ -196,6 +199,10 @@ class Market:
         def run():
             if self.chain == "evm" and x > self.native[a]:
                 raise Fail(NATIVE)                        # il wallet non può inviare msg.value
+            err = ordered.donate(self.chain, self._state(), self.SC, x)
+            ordered.cross(self.v, "D", x, 0, err)
+            if err:
+                raise Fail(err)
             v, _, dbal, _, _ = self._math("donate", x)
             if self.chain == "sol" and self.native[a] - x < RENT0:
                 raise Fail(NATIVE)

@@ -156,8 +156,8 @@ contract BoundaryTest is Test {
             assertEq(o.r.S, c.S[i], string.concat("S: ", where));
         } else {
             assertFalse(o.success, string.concat("atteso errore ", c.err[i], ": ", where));
-            // l'insieme ammesso è "A" oppure "A|B"
-            assertTrue(vm.contains(c.err[i], errName(o.data)), string.concat(where, ": ", errName(o.data), " non in ", c.err[i]));
+            // un solo errore previsto: il primo nell'ordine di §7
+            assertEq(errName(o.data), c.err[i], string.concat("errore diverso: ", where));
         }
     }
 

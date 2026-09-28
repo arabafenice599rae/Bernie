@@ -2,7 +2,7 @@
 //!
 //! Riesegue sul programma reale (SBF su Mollusk, Token-2022 reale) le sequenze prodotte da
 //! `tools/redteam/gen.py sol`, il cui oracolo è il modello dell'Appendice A. Dopo *ogni*
-//! passo confronta: esito (ok o uno degli errori ammessi), k, R, Q, S del vault, supply del
+//! passo confronta: esito (ok o l'errore previsto dall'ordine di §7), k, R, Q, S del vault, supply del
 //! mint, lamport e token di ogni utente, delega al vault, lamport disponibili del vault,
 //! lamport ricevuti dalle tesorerie. Inoltre, in modo indipendente dall'oracolo:
 //! - un passo fallito non cambia nessun account (atomicità, fase 21);
@@ -48,9 +48,9 @@ enum Fail {
     RentState(#[allow(dead_code)] Pubkey),
 }
 
-/// Nome dell'errore osservato, confrontato con l'insieme ammesso dall'oracolo.
+/// Nome dell'errore osservato, confrontato con quello previsto dall'oracolo.
 /// Il codice custom 1 è ambiguo tra ZeroAmount (Bernie), InsufficientFunds (Token-2022)
-/// e ResultWithNegativeLamports (System): vale per chiunque dei tre sia ammesso.
+/// e ResultWithNegativeLamports (System): vale per quello dei tre che è previsto.
 fn matches(actual: &Fail, allowed: &[String]) -> bool {
     let actual = match actual {
         Fail::RentState(_) => return allowed.iter().any(|n| n == "InsufficientNative"),
@@ -293,6 +293,8 @@ fn run_sequence(path: &PathBuf) -> usize {
                     .iter()
                     .map(|x| x.as_str().unwrap().to_string())
                     .collect();
+                // esatto: l'oracolo prevede un solo errore, nell'ordine di §7
+                assert_eq!(allowed.len(), 1, "atteso un solo errore{}", ctx());
                 assert!(matches(e, &allowed), "errore diverso{}", ctx());
                 assert!(before == h.snapshot(), "passo fallito con effetti{}", ctx());
             }

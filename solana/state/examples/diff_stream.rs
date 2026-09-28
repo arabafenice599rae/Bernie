@@ -84,7 +84,8 @@ fn main() {
             }
             (Ok(None), true) => {}
             (Err(e), false) => {
-                if !rest[0].split('|').any(|n| n == e.name()) {
+                // un solo errore previsto: il primo nell'ordine di §7
+                if e.name() != rest[0] {
                     fail(format!("errore {} invece di {}", e.name(), rest[0]));
                 }
                 let after = with!(vault, x => (x.k, x.reserve, x.residual, x.supply));
