@@ -644,8 +644,11 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 - [x] Programmi scritti sull'interfaccia della sezione 11: Solana (`solana/program`) ed EVM (`evm/src`).
 - [ ] Vettori con i casi peggiori portati in Mollusk e Foundry, compreso il redeem con CPI Guard attivo e disattivo. Mollusk fatto (SCALE 10⁹, CPI Guard attivo e disattivo); Foundry fatto (SCALE 10¹⁸, provato in locale con Hardhat 3): da spuntare con la CI Foundry verde.
 - [ ] Probe TSTORE su testnet 46630 e misura delle CU su devnet.
-- [ ] Indirizzi reali di tesoreria (N per Solana).
-- [ ] Upgrade authority revocata su Solana; sorgenti verificati sugli explorer.
+- [ ] Indirizzi reali di tesoreria (N per Solana): vault del multisig Squads, rent-exempt.
+- [x] `security.txt` nel programma Solana: contatti via GitHub Private vulnerability reporting, policy `SECURITY.md`, nessun audit esterno (link al pre-audit).
+- [ ] Build verificata su mainnet: build riproducibile con `solana-verify` (Docker) dal commit del deploy, hash confrontato con il programma on-chain, verifica caricata con la firma dell'upgrade authority. Va fatta **prima** di revocare l'autorità.
+- [ ] Ogni upgrade firmato solo dopo il confronto hash del buffer / build e autorità del buffer (`frontend/upgrade.html`).
+- [ ] Upgrade authority revocata su Solana (o affidata al multisig); contratti EVM verificati sull'explorer.
 - [ ] Parere legale Italia/UE, più USA in caso di utenti americani.
 
 ## 18. Stato dell'arte

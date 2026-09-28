@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bernie · upgrade del programma</title>
+<meta name="robots" content="noindex">
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<style>
+  :root{ color-scheme:dark; --ok:#D9FF3E; --bad:#FF8A80; --ink2:rgba(255,255,255,.62) }
+  body{ margin:0; background:#000; color:#fff; font:15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; padding:max(20px, env(safe-area-inset-top)) 16px 40px }
+  main{ max-width:640px; margin:0 auto }
+  h1{ font-size:24px; margin:0 0 4px } p{ color:var(--ink2); margin:0 0 16px }
+  .card{ border:1px solid rgba(255,255,255,.1); border-radius:22px; background:#111; padding:6px 16px; margin:14px 0 }
+  .row{ display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.07) }
+  .row:last-child{ border-bottom:0 } .row span{ color:var(--ink2); flex:0 0 auto }
+  .row b{ font:500 13px ui-monospace, SFMono-Regular, Menlo, monospace; word-break:break-all; text-align:right }
+  .st{ font-weight:700 } .st.ok{ color:var(--ok) } .st.bad{ color:var(--bad) }
+  button{ width:100%; height:56px; border:0; border-radius:999px; background:var(--ok); color:#0B0B0B; font-weight:700; font-size:17px; margin-top:12px }
+  button:disabled{ background:#2C2C2C; color:#7D7D7D }
+  #log{ font:13px ui-monospace, monospace; color:var(--ink2); white-space:pre-wrap; word-break:break-all }
+  a{ color:var(--ok) }
+</style>
+</head>
+<body>
+<main>
+  <h1>Upgrade del programma Bernie</h1>
+  <p>Pagina di sola verifica e firma. Controlla on-chain il buffer con il nuovo binario, lo confronta con l'hash della build e con la tua autorità; il pulsante si attiva solo se tutto coincide. Parametri nell'URL: <code>program</code>, <code>buffer</code>, <code>sha256</code>, <code>rpc</code>.</p>
+
+  <div class="card" id="params"></div>
+  <div class="card" id="checks"><div class="row"><span>Stato</span><b id="status">collega il wallet</b></div></div>
+  <button id="connect">Collega Phantom</button>
+  <button id="sign" disabled>Firma l'upgrade</button>
+  <div class="card"><div id="log">—</div></div>
+</main>
+<script>
+(() => {
+'use strict';
+const W = window.solanaWeb3, $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search);
+const RPC = q.get('rpc') || 'https://api.devnet.solana.com';
+const PROGRAM = q.get('program') || '8pDmtTNWcYVTf2UpG4QeowLmdkew3WBWKopRmb9qwKHH';
+const BUFFER = q.get('buffer') || '';
+const SHA = (q.get('sha256') || '').toLowerCase();
+const LOADER = new W.PublicKey('BPFLoaderUpgradeab1e11111111111111111111111');
+const conn = new W.Connection(RPC, 'confirmed');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const log = m => { $('#log').textContent = m; };
+const row = (k, v, cls) => `<div class="row"><span>${esc(k)}</span><b class="${cls || ''}">${esc(v)}</b></div>`;
+$('#params').innerHTML = row('RPC', RPC) + row('Programma', PROGRAM) + row('Buffer', BUFFER || 'mancante') + row('SHA-256 atteso (build)', SHA || 'mancante');
+
+let wallet = null, me = null, plan = null;
+const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+const pk = b => new W.PublicKey(b).toBase58();
+
+async function verify(){
+  plan = null; $('#sign').disabled = true;
+  const out = []; let ok = true;
+  const check = (label, pass, detail) => { ok = ok && pass; out.push(row(label, (pass ? '✓ ' : '✗ ') + detail, 'st ' + (pass ? 'ok' : 'bad'))); };
+  try {
+    const program = new W.PublicKey(PROGRAM), buffer = new W.PublicKey(BUFFER);
+    const [progAcc, bufAcc] = await conn.getMultipleAccountsInfo([program, buffer]);
+    check('Programma', !!progAcc && progAcc.owner.equals(LOADER) && progAcc.executable, progAcc ? 'upgradeable, eseguibile' : 'non trovato');
+    const programData = new W.PublicKey(progAcc.data.slice(4, 36));
+    const pdAcc = await conn.getAccountInfo(programData);
+    // ProgramData: tag u32 (3), slot u64, Option<Pubkey> autorità (1 + 32), poi il codice (header 45 byte)
+    const pdAuth = pdAcc.data[12] === 1 ? pk(pdAcc.data.slice(13, 45)) : null;
+    check('Autorità del programma', pdAuth === me, pdAuth || 'nessuna (immutabile)');
+    // Buffer: tag u32 (1), Option<Pubkey> autorità (1 + 32), poi il binario (header 37 byte)
+    const isBuf = bufAcc && bufAcc.owner.equals(LOADER) && bufAcc.data[0] === 1;
+    check('Account buffer', !!isBuf, isBuf ? 'buffer del loader upgradeable' : 'non è un buffer');
+    const bAuth = isBuf && bufAcc.data[4] === 1 ? pk(bufAcc.data.slice(5, 37)) : null;
+    check('Autorità del buffer', bAuth === me, bAuth || 'nessuna');
+    const code = bufAcc.data.slice(37);
+    const h = hex(await crypto.subtle.digest('SHA-256', code));
+    check('SHA-256 del buffer', !!SHA && h === SHA, h);
+    const room = pdAcc.data.length - 45, need = code.length - room;
+    out.push(row('Dimensione', `${code.length} byte nel buffer, ${room} disponibili` + (need > 0 ? `, estensione di ${Math.max(need, 10240)} byte (minimo del runtime; transazione separata, prima dell\'upgrade)` : '')));
+    // il runtime accetta estensioni di almeno 10 240 byte (verificato su un validatore Agave 4.2)
+    if (ok) plan = { program, programData, buffer, extend: need > 0 ? Math.max(need, 10240) : 0 };
+  } catch (e) { ok = false; out.push(row('Errore', e.message || String(e), 'st bad')); }
+  $('#checks').innerHTML = out.join('') + row('Stato', ok ? 'tutti i controlli superati' : 'non firmare', 'st ' + (ok ? 'ok' : 'bad'));
+  $('#sign').disabled = !ok;
+}
+
+$('#connect').addEventListener('click', async () => {
+  wallet = window.phantom?.solana || window.solana || window.solflare || null;
+  if (!wallet){ log('Nessun wallet Solana in questo browser: apri questa pagina nel browser di Phantom.'); return; }
+  try { const r = await wallet.connect(); me = (r?.publicKey || wallet.publicKey).toString(); $('#connect').textContent = 'Collegato: ' + me.slice(0, 4) + '…' + me.slice(-4); log('Verifica in corso…'); await verify(); log('Controlli completati.'); }
+  catch (e) { log('Connessione rifiutata: ' + (e.message || e)); }
+});
+
+$('#sign').addEventListener('click', async () => {
+  if (!plan || !wallet) return;
+  $('#sign').disabled = true;
+  try {
+    const auth = new W.PublicKey(me);
+    const send = async (label, ...ixs) => {
+      const tx = new W.Transaction().add(W.ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }), ...ixs);
+      tx.feePayer = auth; tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+      const { signature } = await wallet.signAndSendTransaction(tx);
+      log(label + ': ' + signature + '\nIn attesa di conferma…');
+      const r = await conn.confirmTransaction(signature, 'confirmed'); if (r.value?.err) throw new Error(label + ' fallita: ' + JSON.stringify(r.value.err));
+      return signature;
+    };
+    if (plan.extend > 0){
+      // 1ª transazione, ExtendProgram (6): programdata, program, system program, payer. Separata dall'upgrade, come fa la CLI.
+      const d = new Uint8Array(8); new DataView(d.buffer).setUint32(0, 6, true); new DataView(d.buffer).setUint32(4, plan.extend, true);
+      await send('Estensione', new W.TransactionInstruction({ programId: LOADER, data: d, keys: [
+        { pubkey: plan.programData, isSigner: false, isWritable: true }, { pubkey: plan.program, isSigner: false, isWritable: true },
+        { pubkey: W.SystemProgram.programId, isSigner: false, isWritable: false }, { pubkey: auth, isSigner: true, isWritable: true }] }));
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    // Upgrade (3): programdata, program, buffer, spill (riceve il rent del buffer), rent, clock, autorità
+    const signature = await send('Upgrade', new W.TransactionInstruction({ programId: LOADER, data: Uint8Array.from([3, 0, 0, 0]), keys: [
+      { pubkey: plan.programData, isSigner: false, isWritable: true }, { pubkey: plan.program, isSigner: false, isWritable: true },
+      { pubkey: plan.buffer, isSigner: false, isWritable: true }, { pubkey: auth, isSigner: false, isWritable: true },
+      { pubkey: W.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, { pubkey: W.SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: auth, isSigner: true, isWritable: false }] }));
+    const cluster = /devnet/.test(RPC) ? '?cluster=devnet' : '';
+    $('#log').innerHTML = 'Upgrade confermato.<br><a href="https://explorer.solana.com/tx/' + esc(signature) + cluster + '" target="_blank" rel="noopener">Vedi la transazione</a>';
+  } catch (e) { log('Upgrade non riuscito: ' + (e.message || e)); $('#sign').disabled = false; }
+});
+})();
+</script>
+</body>
+</html>

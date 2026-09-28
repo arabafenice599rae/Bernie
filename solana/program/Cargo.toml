@@ -20,6 +20,7 @@ pinocchio-system = "0.6.1"
 pinocchio-token = "0.7.0"
 pinocchio-token-2022 = "0.4.0"
 pinocchio-log = "0.5.1"
+solana-security-txt = "1.1.1"
 
 # find_program_address sull'host (test, clippy): sul target Solana usa la syscall.
 [target.'cfg(not(target_os = "solana"))'.dependencies]
