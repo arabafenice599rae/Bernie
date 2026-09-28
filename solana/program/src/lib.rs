@@ -43,6 +43,17 @@ mod entrypoint {
     pinocchio::program_entrypoint!(process_instruction);
     pinocchio::no_allocator!();
     pinocchio::nostd_panic_handler!();
+
+    // Solo metadati nel binario (sezione .security.txt), letti da explorer e scanner.
+    solana_security_txt::security_txt! {
+        name: "Bernie",
+        project_url: "https://github.com/arabafenice599rae/Bernie",
+        contacts: "link:https://github.com/arabafenice599rae/Bernie/security/advisories/new",
+        policy: "https://github.com/arabafenice599rae/Bernie/blob/main/SECURITY.md",
+        preferred_languages: "it,en",
+        source_code: "https://github.com/arabafenice599rae/Bernie",
+        auditors: "None: no external audit. Internal pre-audit: https://github.com/arabafenice599rae/Bernie/blob/main/docs/testing/PreAuditReport.md"
+    }
 }
 
 pub fn process_instruction(
