@@ -53,9 +53,9 @@ donate, sweep, transfer, revoke, claim), errori attesi dall'oracolo, invarianti 
 | Campagna | Seed | Sequenze × passi | Utenti | Esito |
 |---|---|---|---|---|
 | Mollusk (programma SBF reale) | 1000 | 1 000 × 1 000 | 8 | 10⁶ passi, 0 divergenze |
-| Mollusk, 10 lotti | 20000–29999 | 10 000 × 1 000 | 8 | SOL10K |
+| Mollusk, 10 lotti | 20000–29999 | 10 000 × 1 000 | 8 | 10⁷ passi, 0 divergenze (10 lotti su 10 verdi) |
 | Foundry (contratti reali) | 5000 | 1 000 × 500 | 8 | 5 × 10⁵ passi, 0 divergenze |
-| Foundry, 10 lotti | 60000–69999 | 10 000 × 500 | 8 | EVM10K |
+| Foundry, 10 lotti | 60000–69999 | 10 000 × 500 | 8 | 5 × 10⁶ passi, 0 divergenze (10 lotti su 10 verdi) |
 | Marathon Solana | 778 | 1 × 10 000 | 120 | 0 divergenze |
 | Marathon Solana | 777 | 1 × 100 000 | 120 | 0 divergenze (stato utenti completo ogni 1 000 passi) |
 
