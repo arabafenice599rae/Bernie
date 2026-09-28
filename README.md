@@ -649,7 +649,7 @@ Dentro claude.ai le richieste RPC dirette sono bloccate, quindi il live funziona
 - [x] Build riproducibile su devnet: `solana-verify build` nell'immagine `solanafoundation/solana-verifiable-build:4.1.0` dal commit `7ccd3d5` dà lo stesso binario del programma deployato (SHA-256 del file `355e9abc…`, hash eseguibile `adcf1389…`). Si ripete con il workflow manuale «Build verificabile». Il badge «verified» degli explorer esiste solo su mainnet: il servizio remoto di OtterSec non accetta altri cluster.
 - [x] Contratti EVM verificati su Blockscout (testnet 46630): `BernieFactory` e l'implementazione `Bernie`, bytecode identico alla build del repo; i token sono cloni dell'implementazione.
 - [ ] Build verificata su mainnet: build riproducibile con `solana-verify` (Docker) dal commit del deploy, hash confrontato con il programma on-chain, verifica caricata con la firma dell'upgrade authority. Va fatta **prima** di revocare l'autorità.
-- [ ] Ogni upgrade firmato solo dopo il confronto hash del buffer / build e autorità del buffer (`frontend/upgrade.html`).
+- [ ] Ogni upgrade firmato solo dopo il confronto hash del buffer / build e autorità del buffer (`frontend/upgrade.html`, pubblicata su Pages solo per il tempo della firma: vedi `pages.yml`).
 - [ ] Upgrade authority revocata su Solana (o affidata al multisig); contratti EVM verificati sull'explorer di mainnet.
 - [ ] Parere legale Italia/UE, più USA in caso di utenti americani.
 

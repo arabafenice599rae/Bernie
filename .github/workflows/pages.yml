@@ -1,10 +1,13 @@
 name: Frontend su GitHub Pages
 
-# Pubblica frontend/index.html, upgrade.html e metadata.html così come sono. Richiede Settings → Pages → Source: GitHub Actions.
+# Pubblica solo frontend/index.html, così com'è. Richiede Settings → Pages → Source: GitHub Actions.
+# upgrade.html e metadata.html restano nel repo ma non sul sito: fanno firmare upgrade e scritture
+# di metadati, lo schema che gli scanner dei wallet associano ai drainer. Per un upgrade si
+# aggiungono qui e al cp, si firma, poi si tolgono.
 on:
   push:
     branches: [main]
-    paths: [frontend/index.html, frontend/upgrade.html, frontend/metadata.html, .github/workflows/pages.yml]
+    paths: [frontend/index.html, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -26,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Solo le pagine
-        run: mkdir -p site && cp frontend/index.html frontend/upgrade.html frontend/metadata.html site/ && touch site/.nojekyll
+        run: mkdir -p site && cp frontend/index.html site/ && touch site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
