@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bernie · metadati di sicurezza</title>
+<meta name="robots" content="noindex">
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<style>
+  :root{ color-scheme:dark; --ok:#D9FF3E; --bad:#FF8A80; --ink2:rgba(255,255,255,.62) }
+  body{ margin:0; background:#000; color:#fff; font:15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; padding:max(20px, env(safe-area-inset-top)) 16px 40px }
+  main{ max-width:640px; margin:0 auto }
+  h1{ font-size:24px; margin:0 0 4px } p{ color:var(--ink2); margin:0 0 16px }
+  .card{ border:1px solid rgba(255,255,255,.1); border-radius:22px; background:#111; padding:6px 16px; margin:14px 0 }
+  .row{ display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.07) }
+  .row:last-child{ border-bottom:0 } .row span{ color:var(--ink2); flex:0 0 auto }
+  .row b{ font:500 13px ui-monospace, SFMono-Regular, Menlo, monospace; word-break:break-all; text-align:right }
+  .st{ font-weight:700 } .st.ok{ color:var(--ok) } .st.bad{ color:var(--bad) }
+  pre{ font:12px/1.45 ui-monospace, monospace; white-space:pre-wrap; word-break:break-all; margin:10px 0 }
+  button{ width:100%; height:56px; border:0; border-radius:999px; background:var(--ok); color:#0B0B0B; font-weight:700; font-size:17px; margin-top:12px }
+  button:disabled{ background:#2C2C2C; color:#7D7D7D }
+  #log{ font:13px ui-monospace, monospace; color:var(--ink2); white-space:pre-wrap; word-break:break-all }
+  a{ color:var(--ok) }
+</style>
+</head>
+<body>
+<main>
+  <h1>Metadati di sicurezza del programma</h1>
+  <p>Firma la transazione preparata con <code>program-metadata write security</code>. La pagina accetta solo istruzioni di ComputeBudget, System e Program Metadata, mostra il JSON che verrà scritto, simula su devnet e chiede al wallet soltanto la firma.</p>
+
+  <div class="card" id="summary"></div>
+  <div class="card"><div class="row"><span>Contenuto</span></div><pre id="payload">—</pre></div>
+  <div class="card" id="checks"><div class="row"><span>Stato</span><b>collega il wallet</b></div></div>
+  <button id="connect">Collega Phantom</button>
+  <button id="sign" disabled>Firma e invia</button>
+  <p style="margin:12px 0 0; font-size:13px">Se il wallet non è in modalità devnet mostrerà «Impossibile simulare»: la sua simulazione avviene su mainnet. Vale la simulazione su devnet fatta qui.</p>
+  <div class="card"><div id="log">—</div></div>
+</main>
+<script>
+(() => {
+'use strict';
+const W = window.solanaWeb3, $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.slice(1));
+const RPC = q.get('rpc') || 'https://api.devnet.solana.com';
+const conn = new W.Connection(RPC, 'confirmed');
+const ALLOWED = { 'ComputeBudget111111111111111111111111111111': 'ComputeBudget', '11111111111111111111111111111111': 'System', 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S': 'Program Metadata' };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const row = (k, v, cls) => `<div class="row"><span>${esc(k)}</span><b class="${cls || ''}">${esc(v)}</b></div>`;
+const log = m => { $('#log').textContent = m; };
+
+let tx = null, wallet = null, me = null;
+try {
+  const b64 = (h.get('tx') || '').replace(/-/g, '+').replace(/_/g, '/');
+  tx = W.Transaction.from(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+} catch (e) { log('Transazione mancante o non valida nell\'URL (#tx=…).'); }
+
+if (tx){
+  const signers = tx.signatures.map(s => s.publicKey.toBase58());
+  let s = row('RPC', RPC) + row('Firmatari richiesti', signers.join(', '));
+  tx.instructions.forEach((ix, i) => { const p = ix.programId.toBase58(); s += row('Istruzione ' + (i + 1), (ALLOWED[p] || 'SCONOSCIUTO ' + p) + ' · ' + ix.keys.length + ' account'); });
+  $('#summary').innerHTML = s;
+  const md = tx.instructions.find(ix => ix.programId.toBase58() === 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S');
+  if (md){ const t = new TextDecoder().decode(md.data), a = t.indexOf('{'), b = t.lastIndexOf('}');
+    try { $('#payload').textContent = JSON.stringify(JSON.parse(t.slice(a, b + 1)), null, 2); } catch { $('#payload').textContent = 'contenuto non leggibile come JSON'; } }
+}
+
+async function verify(){
+  const out = []; let ok = !!tx;
+  const check = (label, pass, detail) => { ok = ok && pass; out.push(row(label, (pass ? '✓ ' : '✗ ') + detail, 'st ' + (pass ? 'ok' : 'bad'))); };
+  if (tx){
+    const progs = tx.instructions.map(ix => ix.programId.toBase58());
+    check('Programmi', progs.every(p => ALLOWED[p]), progs.every(p => ALLOWED[p]) ? 'solo ComputeBudget, System, Program Metadata' : 'istruzione non ammessa');
+    const signers = tx.signatures.map(s => s.publicKey.toBase58());
+    check('Firmatari', signers.length === 1 && signers[0] === me, signers.join(', '));
+    check('Pagante', tx.feePayer?.toBase58() === me, tx.feePayer?.toBase58() || '—');
+    check('JSON', !/non leggibile|—/.test($('#payload').textContent), 'leggibile, mostrato sopra');
+  }
+  $('#checks').innerHTML = out.join('') + row('Stato', ok ? 'controlli superati' : 'non firmare', 'st ' + (ok ? 'ok' : 'bad'));
+  $('#sign').disabled = !ok;
+}
+
+$('#connect').addEventListener('click', async () => {
+  wallet = window.phantom?.solana || window.solana || window.solflare || null;
+  if (!wallet){ log('Nessun wallet Solana in questo browser: apri questa pagina nel browser di Phantom.'); return; }
+  try { const r = await wallet.connect(); me = (r?.publicKey || wallet.publicKey).toString(); $('#connect').textContent = 'Collegato: ' + me.slice(0, 4) + '…' + me.slice(-4); await verify(); }
+  catch (e) { log('Connessione rifiutata: ' + (e.message || e)); }
+});
+
+$('#sign').addEventListener('click', async () => {
+  $('#sign').disabled = true;
+  try {
+    tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;   // l'export ha un blockhash già scaduto
+    log('Simulazione su ' + RPC + '…');
+    const sim = await conn.simulateTransaction(tx);
+    if (sim.value.err) throw new Error('simulazione fallita, non firmare. ' + JSON.stringify(sim.value.err) + '\n' + (sim.value.logs || []).slice(-4).join('\n'));
+    log('Simulazione su devnet riuscita (' + (sim.value.unitsConsumed || '?') + ' CU). Firma in Phantom…');
+    const signed = await wallet.signTransaction(tx);
+    const sig = await conn.sendRawTransaction(signed.serialize());
+    log('Inviata: ' + sig + '\nIn attesa di conferma…');
+    const r = await conn.confirmTransaction(sig, 'confirmed'); if (r.value?.err) throw new Error('transazione fallita: ' + JSON.stringify(r.value.err));
+    $('#log').innerHTML = 'Metadati scritti.<br><a href="https://explorer.solana.com/tx/' + esc(sig) + (/devnet/.test(RPC) ? '?cluster=devnet' : '') + '" target="_blank" rel="noopener">Vedi la transazione</a>';
+  } catch (e) { log('Non riuscito: ' + (e.message || e)); $('#sign').disabled = false; }
+});
+})();
+</script>
+</body>
+</html>

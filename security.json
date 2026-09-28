@@ -1,0 +1,12 @@
+{
+  "name": "Bernie",
+  "description": "Bernie v1.6: token con backing nativo e penalità d'uscita redistributiva (Solana e Robinhood Chain).",
+  "project_url": "https://github.com/arabafenice599rae/Bernie",
+  "contacts": ["link:https://github.com/arabafenice599rae/Bernie/security/advisories/new"],
+  "policy": "https://github.com/arabafenice599rae/Bernie/blob/main/SECURITY.md",
+  "preferred_languages": ["it", "en"],
+  "source_code": "https://github.com/arabafenice599rae/Bernie",
+  "source_revision": "7ccd3d52125c1cee046941e02bb0fb255bffae2c",
+  "auditors": ["None: no external audit. Internal pre-audit: https://github.com/arabafenice599rae/Bernie/blob/main/docs/testing/PreAuditReport.md"],
+  "version": "1.6.0"
+}

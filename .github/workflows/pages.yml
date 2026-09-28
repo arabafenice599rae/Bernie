@@ -1,10 +1,10 @@
 name: Frontend su GitHub Pages
 
-# Pubblica frontend/index.html e frontend/upgrade.html così come sono. Richiede Settings → Pages → Source: GitHub Actions.
+# Pubblica frontend/index.html, upgrade.html e metadata.html così come sono. Richiede Settings → Pages → Source: GitHub Actions.
 on:
   push:
     branches: [main]
-    paths: [frontend/index.html, frontend/upgrade.html, .github/workflows/pages.yml]
+    paths: [frontend/index.html, frontend/upgrade.html, frontend/metadata.html, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Solo le pagine
-        run: mkdir -p site && cp frontend/index.html frontend/upgrade.html site/ && touch site/.nojekyll
+        run: mkdir -p site && cp frontend/index.html frontend/upgrade.html frontend/metadata.html site/ && touch site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
