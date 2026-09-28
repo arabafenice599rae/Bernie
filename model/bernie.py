@@ -69,12 +69,13 @@ class Ledger:
         if s.w[a] < cost: raise Err("InsufficientFunds")
         s.w[a] -= cost; s.tok[a] += u; s._commit(v); return cost
     def redeem(s, a, u, min_out=0):
-        if u > s.tok[a]: raise Err("InsufficientBalance")
         v = s._copy(s.v); out = v.redeem(u, min_out)
+        if u > s.tok[a]: raise Err("InsufficientBalance")  # al burn, dopo il calcolo (§7)
         s.w[a] += out; s.tok[a] -= u; s._commit(v); return out
     def donate(s, a, x):
-        if s.w[a] < x: raise Err("InsufficientFunds")
-        v = s._copy(s.v); v.donate(x); s.w[a] -= x; s._commit(v)
+        v = s._copy(s.v); v.donate(x)
+        if s.w[a] < x: raise Err("InsufficientFunds")      # al trasferimento, dopo il calcolo (§7)
+        s.w[a] -= x; s._commit(v)
     def value(s, a): return s.v.value(s.tok[a])
     def check(s):
         assert sum(s.tok.values()) == s.v.S

@@ -385,6 +385,7 @@ dependencies = [
  "solana-pubkey 4.2.0",
  "solana-rent",
  "solana-sdk-ids",
+ "solana-svm-log-collector",
  "solana-syscalls",
  "solana-system-program",
  "solana-transaction-context",

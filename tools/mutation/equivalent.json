@@ -1,0 +1,66 @@
+[
+ {
+  "id": "t:solvency-no-supply-check",
+  "reason": "EQUIVALENT: _state() legge S da totalSupply() e _mint/_burn muovono esattamente u, quindi totalSupply() == s.S vale per costruzione; il controllo è difensivo e non raggiungibile senza modificare altro codice"
+ },
+ {
+  "id": "del:evm/src/Bernie.sol:157",
+  "reason": "EQUIVALENT: stessa riga di t:solvency-no-supply-check (cancellazione del controllo totalSupply() != s.S), non raggiungibile per costruzione"
+ },
+ {
+  "id": "t:math-fee-double-rounding",
+  "reason": "EQUIVALENT con le costanti v1.6: ⌊⌊40b/10⁴⌋·20/40⌋ = ⌊⌊b/250⌋/2⌋ = ⌊b/500⌋ = ⌊20b/10⁴⌋ (identità dei floor annidati). Con FEE_C ≠ FEE_P il mutante diventerebbe osservabile e va riesaminato"
+ },
+ {
+  "id": "t:redeem-no-supply-check-after",
+  "reason": "EQUIVALENT: prima del burn check_supply verifica supply == S; BurnChecked di Token-2022 toglie esattamente u e S scende di u, quindi supply == S dopo il burn vale per costruzione (controllo difensivo contro un Token-2022 difettoso)"
+ },
+ {
+  "id": "t:mint-no-supply-check-after",
+  "reason": "EQUIVALENT: come per redeem, MintTo aggiunge esattamente u a supply e a S; supply == S dopo il mint vale per costruzione"
+ },
+ {
+  "id": "t:sweep-no-solvency",
+  "reason": "EQUIVALENT: sweep_amount = disponibile − ⌈(R+Q)/SCALE⌉, quindi dopo lo sweep I2 vale per costruzione; il controllo resta come difesa"
+ },
+ {
+  "id": "t:move-lamports-no-underflow-check",
+  "reason": "EQUIVALENT: tutti i chiamanti muovono importi ≤ lamport disponibili (solvenza verificata prima); anche se non fosse, la saturazione creerebbe lamport e il runtime rifiuterebbe l'istruzione (UnbalancedInstruction), quindi nessun effetto osservabile diverso dal codice d'errore"
+ },
+ {
+  "id": "cm:program/src/processor/mod.rs:87:16: replace > with >= in create_account",
+  "reason": "EQUIVALENT: con missing = 0 il mutante invia un Transfer di 0 lamport; trasferimento di 0 lamport: il System program lo accetta senza effetti (cambia solo il consumo di CU)"
+ },
+ {
+  "id": "cm:program/src/processor/mint.rs:49:28: replace > with >= in process",
+  "reason": "EQUIVALENT: con fee di protocollo 0 il mutante invia un Transfer di 0 lamport alla tesoreria; trasferimento di 0 lamport: il System program lo accetta senza effetti (cambia solo il consumo di CU)"
+ },
+ {
+  "id": "cm:program/src/token.rs:39:16: replace < with == in mint_supply",
+  "reason": "EQUIVALENT: vault::load lega il mint all'indirizzo registrato nel vault, che è sempre un mint Token-2022 con MetadataPointer e TokenMetadata (> 82 byte); un account Token-2022 inizializzato più corto di 82 byte non esiste"
+ },
+ {
+  "id": "cm:program/src/token.rs:39:16: replace < with <= in mint_supply",
+  "reason": "EQUIVALENT: rifiuterebbe solo un mint Token-2022 di esattamente 82 byte (senza estensioni); il mint di Bernie, vincolato dal vault, ha sempre le estensioni e non è mai lungo 82 byte"
+ },
+ {
+  "id": "cm:program/src/token.rs:73:9: delete match arm 0 in token_account",
+  "reason": "EQUIVALENT con Token-2022 reale: quando il delegato è None (revoke o uso completo della delega) Token-2022 azzera anche i 32 byte della chiave, verificato su Mollusk. Il mutante legge quindi Some(0), diverso dal vault PDA, e dà MissingDelegation come l'originale. La lettura del tag resta come difesa contro un layout diverso"
+ },
+ {
+  "id": "cm:program/src/token.rs:95:58: replace + with * in initialize_metadata",
+  "reason": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici"
+ },
+ {
+  "id": "cm:program/src/token.rs:95:45: replace + with * in initialize_metadata",
+  "reason": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici"
+ },
+ {
+  "id": "cm:program/src/token.rs:95:34: replace + with * in initialize_metadata",
+  "reason": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici"
+ },
+ {
+  "id": "cm:program/src/token.rs:95:26: replace + with * in initialize_metadata",
+  "reason": "EQUIVALENT: cambia solo la capacità MAX del buffer locale (i prodotti sono tutti ≥ delle somme originali, quindi il buffer si allarga); i dati inviati sono data[..at], identici"
+ }
+]

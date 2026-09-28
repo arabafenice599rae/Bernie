@@ -55,6 +55,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Vettori aggiornati
         run: python tools/gen_vectors.py --check
+      - name: Vettori di confine aggiornati (pre-audit)
+        run: python tools/redteam/boundary.py --check
       - name: Keccak di riferimento
         run: python tools/keccak.py
 
@@ -91,6 +93,12 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test -p bernie-state --release
+      - name: Differential in streaming (oracolo Appendice A, 400.000 passi)
+        run: |
+          python3 ../tools/redteam/stream.py --seqs 200 --ops 1000 --scale 10 \
+            | cargo run -q --release -p bernie-state --example diff_stream
+          python3 ../tools/redteam/stream.py --seqs 200 --ops 1000 --scale 1000000000 \
+            | cargo run -q --release -p bernie-state --example diff_stream
 
   program:
     name: Programma Solana (SBF + Mollusk)
@@ -111,7 +119,7 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: Build SBF
         run: cargo build-sbf --manifest-path program/Cargo.toml
-      - name: Mollusk (vettori, CPI Guard, CU, transazioni del frontend)
+      - name: Mollusk (vettori, CPI Guard, CU, frontend, avversariali, differential)
         env:
           RUST_LOG: "off"
         run: cargo test -p bernie-program --release -- --nocapture
@@ -148,6 +156,8 @@ jobs:
           npm ci
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge build --sizes
+      - name: Sequenze differential (oracolo Appendice A)
+        run: python3 ../tools/redteam/gen.py evm --seed 1 --seqs 20 --ops 150 --out diff
       - run: forge test -vv
       - name: Selettori secondo forge
         run: forge inspect IBernie methodIdentifiers && forge inspect IBernieFactory methodIdentifiers

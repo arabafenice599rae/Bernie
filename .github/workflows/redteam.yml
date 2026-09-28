@@ -1,0 +1,139 @@
+name: Red team (campagne lunghe)
+
+# Pre-audit (docs/testing/PreAuditReport.md): le campagne ad alto volume e il mutation
+# testing costano ore di runner, quindi non girano a ogni push. Settimanale e a mano.
+on:
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: "Moltiplicatore delle campagne (1 = settimanale)"
+        default: "1"
+  schedule:
+    - cron: "41 2 * * 0" # domenica notte
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redteam-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AGAVE_VERSION: "4.2.2"
+  SCALE: ${{ inputs.scale || '1' }}
+
+jobs:
+  state-stream:
+    name: Differential bernie-state (10⁷ passi per scala)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: solana
+    strategy:
+      fail-fast: false
+      matrix:
+        scale: ["10", "1000000000"]
+        seed: [1, 100001, 200001, 300001]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: solana
+      - run: cargo build -q --release -p bernie-state --example diff_stream
+      - name: 2.500 sequenze × 1.000 passi per job
+        run: |
+          python3 ../tools/redteam/stream.py --seed ${{ matrix.seed }} --seqs $((2500 * SCALE)) --ops 1000 --scale ${{ matrix.scale }} \
+            | ./target/release/examples/diff_stream
+
+  solana:
+    name: Differential e marathon sul programma (Mollusk)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: solana
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: solana
+      - name: Installa Agave
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${AGAVE_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - run: cargo build-sbf --manifest-path program/Cargo.toml
+      - name: 1.000 sequenze × 500 passi, 8 utenti
+        env:
+          RUST_LOG: "off"
+        run: |
+          python3 ../tools/redteam/gen.py sol --seed 1000 --seqs $((1000 * SCALE)) --ops 500 --users 8 --out /tmp/seq
+          BERNIE_DIFF_DIR=/tmp/seq cargo test -q -p bernie-program --release --test differential -- --nocapture
+      - name: Marathon, 120 utenti × 100.000 passi
+        env:
+          RUST_LOG: "off"
+        run: |
+          python3 ../tools/redteam/gen.py sol --seed 777 --seqs 1 --ops 100000 --users 120 --sparse 1000 --out /tmp/marathon
+          BERNIE_DIFF_DIR=/tmp/marathon cargo test -q -p bernie-program --release --test differential -- --nocapture
+
+  evm:
+    name: Differential sui contratti (Foundry)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: evm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dipendenze
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          npm ci
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: 500 sequenze × 500 passi, 8 utenti
+        run: |
+          python3 ../tools/redteam/gen.py evm --seed 5000 --seqs $((500 * SCALE)) --ops 500 --users 8 --out diff
+          # un solo test legge tutte le sequenze: il limite di gas di default (2³⁰) non basta
+          forge test --match-contract DifferentialTest --gas-limit 18446744073709551615 -vv
+
+  mutation:
+    name: Mutation testing (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [state, evm, solana]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: solana
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Strumenti
+        run: |
+          cargo install --locked cargo-mutants
+          if [ "${{ matrix.target }}" = solana ]; then
+            sh -c "$(curl -sSfL https://release.anza.xyz/v${AGAVE_VERSION}/install)"
+            echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          fi
+          if [ "${{ matrix.target }}" = evm ]; then
+            git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+            (cd evm && npm ci)
+          fi
+      - name: Mutanti (il job fallisce se ne sopravvive uno non classificato)
+        run: python3 tools/mutation/mutate.py ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-${{ matrix.target }}
+          path: docs/testing/mutation/

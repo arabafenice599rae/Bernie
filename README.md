@@ -275,6 +275,44 @@ ritira con `sweep`.
 | 16 | `MetadataTooLong` | nome, simbolo o URI fuori dai limiti |
 | 17 | `NotOwner` | nel redeem il token account non appartiene al firmatario (solo Solana, nuovo) |
 
+### Ordine di valutazione
+
+Quando più condizioni d'errore valgono insieme, un'operazione riporta **solo la prima**, in
+quest'ordine. È l'ordine applicato dalle due implementazioni, verificato dai test. La
+numerazione dei codici nella tabella qui sopra non è l'ordine di valutazione.
+
+1. **Transazione (piattaforma).** Su EVM una chiamata con `msg.value` oltre il saldo del
+   mittente non parte: prevale su tutto.
+2. **Account (solo Solana).** Numero, firme e scrivibilità degli account, programmi,
+   tesoreria, vault (owner, header, PDA, mint del mercato), `SupplyMismatch`. Nel redeem
+   seguono: mint del token account, `NotOwner`, `MissingDelegation`.
+3. **Argomenti e parametri**, in quest'ordine per operazione:
+   - `create`: `PriceOutOfRange`, `PenaltyOutOfRange`, `MetadataTooLong`;
+   - `mint`: `ZeroAmount`;
+   - `redeem`: `ZeroAmount`, `ExceedsSupply`;
+   - `donate`: `ZeroAmount`, `NoHolders`.
+4. **Calcolo**, nell'ordine dei passi di §6. `Overflow` scatta nel punto in cui un valore esce
+   dal dominio della chain: su Solana importi nativi e S in u64, k, R, Q e i prodotti
+   intermedi in u128; su EVM tutto in uint256. Le altre condizioni si valutano appena il
+   loro valore è disponibile:
+   - `mint`: calcolo di epen, absorb, `full` e costo (`Overflow`), poi `Slippage` su
+     Solana; aggiornamento dello stato (`Overflow`). Su EVM `Slippage` (`msg.value` sotto
+     costo + fee) si valuta dopo l'aggiornamento dello stato;
+   - `redeem`: `full` e penalità (`Overflow`), `Dust`, lordo `g` (`Overflow` su Solana),
+     `ZeroPayout`, `Slippage`, poi aggiornamento dello stato (`Overflow`);
+   - `donate`: `a · SCALE` e aggiornamento dello stato (`Overflow`).
+5. **Esecuzione (piattaforma).** Errori che si scoprono solo dopo il calcolo: saldo token al
+   burn (redeem); lamport insufficienti o pagatore che resterebbe sotto il rent-exempt nei
+   trasferimenti di sistema (Solana); saldo al trasferimento ERC-20.
+
+`TransferToSelf` (EVM) si valuta prima del saldo del mittente. Gli errori di `sweep` e dei
+claim (`NothingToClaim`) arrivano dopo i controlli sugli account.
+
+`InvariantViolated` è **fuori da quest'ordine**: segnala un bug e non si raggiunge da stati
+validi. Un solo caso di dominio lo produce su Solana: se dopo l'operazione R + Q non sta in
+u128, il controllo delle invarianti non può calcolare I5. Su chain non accade, perché I2
+richiederebbe più lamport di quelli esistenti.
+
 Casi limite con comportamento definito:
 
 - **Ultimo uscente.** Paga la penalità come tutti. Penalità e resti diventano excess e vanno sempre al creator tramite `sweep`, chiunque sia l'ultimo holder. Il vault resta aperto: il token è riutilizzabile al prezzo raggiunto.
@@ -749,12 +787,13 @@ class Ledger:
         if s.w[a] < cost: raise Err("InsufficientFunds")
         s.w[a] -= cost; s.tok[a] += u; s._commit(v); return cost
     def redeem(s, a, u, min_out=0):
-        if u > s.tok[a]: raise Err("InsufficientBalance")
         v = s._copy(s.v); out = v.redeem(u, min_out)
+        if u > s.tok[a]: raise Err("InsufficientBalance")  # al burn, dopo il calcolo (§7)
         s.w[a] += out; s.tok[a] -= u; s._commit(v); return out
     def donate(s, a, x):
-        if s.w[a] < x: raise Err("InsufficientFunds")
-        v = s._copy(s.v); v.donate(x); s.w[a] -= x; s._commit(v)
+        v = s._copy(s.v); v.donate(x)
+        if s.w[a] < x: raise Err("InsufficientFunds")      # al trasferimento, dopo il calcolo (§7)
+        s.w[a] -= x; s._commit(v)
     def value(s, a): return s.v.value(s.tok[a])
     def check(s):
         assert sum(s.tok.values()) == s.v.S
