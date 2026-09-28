@@ -283,6 +283,11 @@ small.up{ color:var(--up) !important } small.flat, small.ex{ color:var(--ink3) }
 .fig .seg.mini{ margin:0 } .fig .seg button{ height:38px; font-size:14px }
 .fig .box{ border-radius:20px; border:1px solid rgba(255,255,255,.08); background:linear-gradient(160deg, rgba(24,24,24,.9), rgba(8,8,8,.94)); padding:12px 14px }
 .fig .box .bar{ margin:4px 0 8px } .fig .box .foot{ margin:0 }
+.fig .box.tok{ background:radial-gradient(80% 70% at 6% 100%, rgba(217,255,62,.10), transparent 64%), linear-gradient(160deg, rgba(24,24,24,.9), rgba(6,6,6,.94)); border-color:rgba(255,255,255,.1) }
+.fig .dim{ opacity:.32 } .fig .dim.neutral{ margin:0 0 10px }
+.fig .hlbox{ border-radius:16px; box-shadow:inset 0 0 0 1.5px #D9FF3E; padding:10px 12px }
+.fig .hlbox.foot{ font-size:14px; line-height:1.45; color:rgba(255,255,255,.88) }
+.fig .pv{ font-size:12px; color:rgba(255,255,255,.55); margin:0 0 10px } .fig .pv b{ display:block; margin-top:2px; font-size:20px; font-weight:600; color:#fff; letter-spacing:-.02em }
 .fig svg{ display:block; width:100%; height:auto }
 .fig .hlt{ color:#D9FF3E }
 .langlist{ list-style:none; margin:14px 0 0; padding:0 } .langlist button{ width:100%; display:flex; gap:12px; align-items:center; height:52px; border:0; background:none; font-size:16px; font-weight:600; border-top:1px solid var(--line) }
@@ -847,8 +852,8 @@ function faqFig(kind){
   else if (kind === 'be') h = stats(1);
   else if (kind === 'turn') h = stats(2);
   else if (kind === 'tabs') h = `<div class="seg mini"><button class="on" tabindex="-1">${t('cta.mint')}</button><button tabindex="-1">${t('cta.redeem')}</button><button tabindex="-1">${t('cta.donate')}</button></div>`;
-  else if (kind === 'bar') h = `<div class="box"><div class="bar"><i style="width:34%"></i></div><div class="barlbl"><span>${t('bar.prot')}</span><span>${t('bar.pens', { x: pct(34, 0) })}</span></div></div>`;
-  else if (kind === 'foot') h = `<div class="box"><div class="foot">${t('tok.foot', { s: '<span class="hlt">400</span>', r: '<span class="hlt">' + fmtNum(0.52, 2) + ' SOL</span>', p: '<span class="hlt">' + pct(2, 1) + '</span>', e: '<span class="hlt">' + pct(1, 1) + '</span>' })}</div></div>`;
+  else if (kind === 'bar') h = `<div class="box tok"><div class="pv dim">${t('tok.value')}<b>${fmtNum(0.0013, 4)} SOL</b></div><div class="hlbox"><div class="bar"><i style="width:34%"></i></div><div class="barlbl"><span>${t('bar.prot')}</span><span>${t('bar.pens', { x: pct(34, 0) })}</span></div></div></div>`;
+  else if (kind === 'foot') h = `<div class="box tok"><div class="neutral dim">${t('neutral.chart')}</div><div class="foot hlbox">${t('tok.foot', { s: '<span class="hlt">400</span>', r: '<span class="hlt">' + fmtNum(0.52, 2) + ' SOL</span>', p: '<span class="hlt">' + pct(2, 1) + '</span>', e: '<span class="hlt">' + pct(1, 1) + '</span>' })}</div></div>`;
   return h ? `<div class="fig" aria-hidden="true">${h}</div>` : '';
 }
 function applyLang(){
